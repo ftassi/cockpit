@@ -19,11 +19,12 @@ import dev.ftassi.cockpit.config.Block
 import dev.ftassi.cockpit.launch.openSpotify
 import dev.ftassi.cockpit.launch.openWaze
 import dev.ftassi.cockpit.launch.startVoiceAssist
+import dev.ftassi.cockpit.nowplaying.NowPlayingState
 
 private val BarHeight = 96.dp
 
 @Composable
-fun CockpitScreen(blocks: List<Block>, onPlay: (Block.Radio) -> Unit) {
+fun CockpitScreen(blocks: List<Block>, nowPlaying: NowPlayingState, onPlay: (Block.Radio) -> Unit) {
     val context = LocalContext.current
     // Screens opened on top of the root grid: only Group and Contacts.
     val stack = remember { mutableStateListOf<Block>() }
@@ -48,6 +49,8 @@ fun CockpitScreen(blocks: List<Block>, onPlay: (Block.Radio) -> Unit) {
             is Block.Group -> TileGrid(screen.blocks.map { it.toTile(onBlockClick) }, content)
             else -> ContactsScreen(content)
         }
+
+        NowPlayingBar(nowPlaying)
 
         Row(
             modifier = Modifier.height(BarHeight),
