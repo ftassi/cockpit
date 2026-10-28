@@ -11,12 +11,13 @@ class ConfigTest {
         val json = """
             {
               "blocks": [
-                { "type": "radio", "name": "Test FM", "url": "https://stream.example/test.mp3" },
-                { "type": "spotify", "uri": "spotify:playlist:abc" },
+                { "type": "group", "name": "Musica", "blocks": [
+                    { "type": "radio", "name": "Test FM", "url": "https://stream.example/test.mp3" },
+                    { "type": "spotify", "name": "Test list", "uri": "spotify:playlist:abc" }
+                ]},
                 { "type": "spotify" },
-                { "type": "waze" },
-                { "type": "maps" },
-                { "type": "phone" }
+                { "type": "contacts" },
+                { "type": "waze" }
               ]
             }
         """
@@ -25,12 +26,16 @@ class ConfigTest {
 
         assertEquals(
             listOf(
-                Block.Radio(name = "Test FM", url = "https://stream.example/test.mp3"),
-                Block.Spotify(uri = "spotify:playlist:abc"),
-                Block.Spotify(uri = null),
+                Block.Group(
+                    name = "Musica",
+                    blocks = listOf(
+                        Block.Radio(name = "Test FM", url = "https://stream.example/test.mp3"),
+                        Block.Spotify(name = "Test list", uri = "spotify:playlist:abc"),
+                    ),
+                ),
+                Block.Spotify(name = "Spotify", uri = null),
+                Block.Contacts,
                 Block.Waze,
-                Block.Maps,
-                Block.Phone,
             ),
             config.blocks,
         )

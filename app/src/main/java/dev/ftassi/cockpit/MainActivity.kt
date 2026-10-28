@@ -8,7 +8,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import dev.ftassi.cockpit.config.loadConfig
 import dev.ftassi.cockpit.ui.CockpitTheme
-import dev.ftassi.cockpit.ui.DashScreen
+import dev.ftassi.cockpit.ui.CockpitScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             CockpitTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    DashScreen(config.blocks, onBlockClick = {})
+                    CockpitScreen(config.blocks)
                 }
             }
         }

@@ -11,6 +11,11 @@ data class Config(val blocks: List<Block>)
 // The JSON "type" field selects the variant.
 @Serializable
 sealed interface Block {
+    // Opens a sub-screen with its own blocks.
+    @Serializable
+    @SerialName("group")
+    data class Group(val name: String, val blocks: List<Block>) : Block
+
     @Serializable
     @SerialName("radio")
     data class Radio(val name: String, val url: String) : Block
@@ -18,19 +23,16 @@ sealed interface Block {
     // A null uri opens the Spotify app on its home screen.
     @Serializable
     @SerialName("spotify")
-    data class Spotify(val uri: String? = null) : Block
+    data class Spotify(val name: String = "Spotify", val uri: String? = null) : Block
+
+    // Opens the starred contacts from the phone's address book.
+    @Serializable
+    @SerialName("contacts")
+    data object Contacts : Block
 
     @Serializable
     @SerialName("waze")
     data object Waze : Block
-
-    @Serializable
-    @SerialName("maps")
-    data object Maps : Block
-
-    @Serializable
-    @SerialName("phone")
-    data object Phone : Block
 }
 
 fun parseConfig(json: String): Config = Json.decodeFromString(json)
