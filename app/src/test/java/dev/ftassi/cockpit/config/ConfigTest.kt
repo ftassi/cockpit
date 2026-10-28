@@ -18,6 +18,9 @@ class ConfigTest {
                 { "type": "spotify" },
                 { "type": "contacts" },
                 { "type": "waze" }
+              ],
+              "bar": [
+                { "type": "voice" }
               ]
             }
         """
@@ -39,6 +42,7 @@ class ConfigTest {
             ),
             config.blocks,
         )
+        assertEquals(listOf(Block.Voice), config.bar)
     }
 
     @Test
@@ -52,6 +56,7 @@ class ConfigTest {
     fun `finds the first radio, depth first`() {
         val skyline = Block.Radio("Skyline", "https://stream.example/skyline.mp3")
         val config = Config(
+            bar = emptyList(),
             blocks = listOf(
                 Block.Waze,
                 Block.Group("Radio", listOf(Block.Spotify(), skyline)),

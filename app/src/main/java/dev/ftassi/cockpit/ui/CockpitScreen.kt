@@ -28,6 +28,7 @@ private val RecentHeight = 112.dp
 @Composable
 fun CockpitScreen(
     blocks: List<Block>,
+    bar: List<Block>,
     nowPlaying: NowPlayingState,
     recentRadios: List<Block.Radio>,
     carModeActive: Boolean,
@@ -46,6 +47,7 @@ fun CockpitScreen(
             is Block.Radio -> onPlay(block)
             is Block.Spotify -> openSpotify(context, block.uri)
             Block.Waze -> openWaze(context)
+            Block.Voice -> startVoiceAssist(context)
         }
     }
 
@@ -69,20 +71,18 @@ fun CockpitScreen(
             modifier = Modifier.height(BarHeight),
             horizontalArrangement = Arrangement.spacedBy(Gap),
         ) {
+            val barModifier = Modifier.weight(1f)
+            val barText = MaterialTheme.typography.headlineMedium
             if (stack.isNotEmpty()) {
-                TileBox(
-                    Tile("Indietro", Color(0xFF424242)) { stack.removeAt(stack.lastIndex) },
-                    Modifier.weight(1f),
-                )
+                TileBox(Tile("←", Color(0xFF424242)) { stack.removeAt(stack.lastIndex) }, barModifier, barText)
             }
-            TileBox(
-                Tile("Voce", Color(0xFFC62828)) { startVoiceAssist(context) },
-                Modifier.weight(1f),
-            )
+            for (block in bar) {
+                TileBox(block.toTile(onBlockClick, icon = true), barModifier, barText)
+            }
             if (carModeActive) {
-                TileBox(Tile("Esci", Color(0xFF6D4C41), onExitCarMode), Modifier.weight(1f))
+                TileBox(Tile("🏁", Color(0xFF6D4C41), onExitCarMode), barModifier, barText)
             } else {
-                TileBox(Tile("Auto", Color(0xFF00695C), onEnterCarMode), Modifier.weight(1f))
+                TileBox(Tile("🚗", Color(0xFF00695C), onEnterCarMode), barModifier, barText)
             }
         }
     }
@@ -101,13 +101,16 @@ private fun Recents(tiles: List<Tile>) {
     }
 }
 
-private fun Block.toTile(onClick: (Block) -> Unit): Tile {
+// icon: the short label used in the bottom bar. Emoji are placeholders until
+// the restyle brings real icons.
+private fun Block.toTile(onClick: (Block) -> Unit, icon: Boolean = false): Tile {
     val (label, color) = when (this) {
         is Block.Group -> name to Color(0xFF455A64)
         is Block.Radio -> name to Color(0xFF8E44AD)
         is Block.Spotify -> name to Color(0xFF1DB954)
-        Block.Contacts -> "Telefono" to Color(0xFF2E7D32)
-        Block.Waze -> "Waze" to Color(0xFF33CCFF)
+        Block.Contacts -> (if (icon) "📞" else "Telefono") to Color(0xFF2E7D32)
+        Block.Waze -> (if (icon) "🧭" else "Waze") to Color(0xFF33CCFF)
+        Block.Voice -> (if (icon) "🎤" else "Voce") to Color(0xFFC62828)
     }
     return Tile(label, color) { onClick(this) }
 }

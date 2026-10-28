@@ -5,8 +5,10 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
+// blocks fill the main grid; bar holds the small icon buttons always at the
+// bottom of the screen.
 @Serializable
-data class Config(val blocks: List<Block>)
+data class Config(val blocks: List<Block>, val bar: List<Block>)
 
 // The JSON "type" field selects the variant.
 @Serializable
@@ -33,6 +35,11 @@ sealed interface Block {
     @Serializable
     @SerialName("waze")
     data object Waze : Block
+
+    // Starts the phone's voice assistant.
+    @Serializable
+    @SerialName("voice")
+    data object Voice : Block
 }
 
 // The station car mode falls back to before anything has been played.

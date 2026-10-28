@@ -6,8 +6,11 @@
     ]},
     { "type": "group", "name": "Musica", "blocks": [
         { "type": "spotify" }
-    ]},
+    ]}
+  ],
+  "bar": [
     { "type": "contacts" },
-    { "type": "waze" }
+    { "type": "waze" },
+    { "type": "voice" }
   ]
 }

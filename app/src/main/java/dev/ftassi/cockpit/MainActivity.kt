@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     CockpitScreen(
                         config.blocks,
+                        config.bar,
                         nowPlayingState,
                         recentRadios,
                         carModeActive = carModeActive,
