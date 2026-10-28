@@ -2,6 +2,7 @@ package dev.ftassi.cockpit.playback
 
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -29,6 +30,16 @@ class RadioService : MediaSessionService() {
             // Keep CPU and Wi-Fi awake while streaming with the screen off.
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
+        player.addListener(object : Player.Listener {
+            // Whatever paused us (user, Spotify taking audio focus, AUX
+            // unplugged), drop the stream: a paused live stream would resume
+            // from stale buffered audio, or fail because the server closed the
+            // idle connection. In IDLE, the session's play command prepares
+            // again, reconnecting to the live edge.
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                if (!playWhenReady) player.stop()
+            }
+        })
         session = MediaSession.Builder(this, player).build()
     }
 
