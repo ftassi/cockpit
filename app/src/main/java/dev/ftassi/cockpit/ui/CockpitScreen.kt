@@ -1,29 +1,50 @@
 package dev.ftassi.cockpit.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import dev.ftassi.cockpit.R
 import dev.ftassi.cockpit.config.Block
+import dev.ftassi.cockpit.config.Icon
 import dev.ftassi.cockpit.launch.openSpotify
 import dev.ftassi.cockpit.launch.openWaze
 import dev.ftassi.cockpit.launch.startVoiceAssist
 import dev.ftassi.cockpit.nowplaying.NowPlayingState
 
-private val BarHeight = 96.dp
-private val RecentHeight = 112.dp
+private val BarHeight = 76.dp
+private val HomeTilesHeight = 160.dp
 
 @Composable
 fun CockpitScreen(
@@ -57,9 +78,11 @@ fun CockpitScreen(
     ) {
         val content = Modifier.weight(1f)
         when (val screen = stack.lastOrNull()) {
-            null -> {
-                if (recentRadios.isNotEmpty()) Recents(recentRadios.map { it.toTile(onBlockClick) })
+            null -> if (recentRadios.isEmpty()) {
                 TileGrid(blocks.map { it.toTile(onBlockClick) }, content)
+            } else {
+                TileGrid(blocks.map { it.toTile(onBlockClick) }, Modifier.height(HomeTilesHeight))
+                Recents(recentRadios, onPlay, content)
             }
             is Block.Group -> TileGrid(screen.blocks.map { it.toTile(onBlockClick) }, content)
             else -> ContactsScreen(content)
@@ -72,45 +95,75 @@ fun CockpitScreen(
             horizontalArrangement = Arrangement.spacedBy(Gap),
         ) {
             val barModifier = Modifier.weight(1f)
-            val barText = MaterialTheme.typography.headlineMedium
+            val barText = MaterialTheme.typography.titleLarge
             if (stack.isNotEmpty()) {
-                TileBox(Tile("←", Color(0xFF424242)) { stack.removeAt(stack.lastIndex) }, barModifier, barText)
+                TileBox(Tile("Indietro", R.drawable.ph_arrow_left) { stack.removeAt(stack.lastIndex) }, barModifier, barText, BarIconSize)
             }
             for (block in bar) {
-                TileBox(block.toTile(onBlockClick, icon = true), barModifier, barText)
+                TileBox(block.toTile(onBlockClick), barModifier, barText, BarIconSize)
             }
             if (carModeActive) {
-                TileBox(Tile("🏁", Color(0xFF6D4C41), onExitCarMode), barModifier, barText)
+                TileBox(Tile("Esci dalla modalità auto", R.drawable.ph_power, onClick = onExitCarMode), barModifier, barText, BarIconSize)
             } else {
-                TileBox(Tile("🚗", Color(0xFF00695C), onEnterCarMode), barModifier, barText)
+                TileBox(Tile("Modalità auto", R.drawable.ph_car, Accent, onEnterCarMode), barModifier, barText, BarIconSize)
             }
         }
     }
 }
 
-// Smaller than the main blocks, up to three per row; each row shares its
-// width among however many recents it holds, so any count fills the screen.
+// Three per row, cover on top and title below; radios have no cover yet,
+// so they show the radio icon instead.
 @Composable
-private fun Recents(tiles: List<Tile>) {
-    for (row in tiles.chunked(3)) {
-        Row(modifier = Modifier.height(RecentHeight), horizontalArrangement = Arrangement.spacedBy(Gap)) {
-            for (tile in row) {
-                TileBox(tile, Modifier.weight(1f), MaterialTheme.typography.titleLarge)
+private fun Recents(radios: List<Block.Radio>, onPlay: (Block.Radio) -> Unit, modifier: Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Gap)) {
+        Text("RECENTI", style = SectionLabel, color = Muted)
+        for (row in radios.chunked(3)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                for (radio in row) {
+                    Recent(radio.name, "RADIO", R.drawable.ph_radio, RadioColor, Modifier.weight(1f)) { onPlay(radio) }
+                }
+                // Keep the columns aligned when the last row is not full.
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
 }
 
-// icon: the short label used in the bottom bar. Emoji are placeholders until
-// the restyle brings real icons.
-private fun Block.toTile(onClick: (Block) -> Unit, icon: Boolean = false): Tile {
-    val (label, color) = when (this) {
-        is Block.Group -> name to Color(0xFF455A64)
-        is Block.Radio -> name to Color(0xFF8E44AD)
-        is Block.Spotify -> name to Color(0xFF1DB954)
-        Block.Contacts -> (if (icon) "📞" else "Telefono") to Color(0xFF2E7D32)
-        Block.Waze -> (if (icon) "🧭" else "Waze") to Color(0xFF33CCFF)
-        Block.Voice -> (if (icon) "🎤" else "Voce") to Color(0xFFC62828)
+@Composable
+private fun Recent(title: String, kind: String, @DrawableRes icon: Int, tint: Color, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(
+            Modifier.fillMaxWidth().aspectRatio(1f)
+                .border(1.5.dp, Outline, RoundedCornerShape(10.dp))
+                .background(Placeholder, RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(painterResource(icon), contentDescription = null, tint = tint, modifier = Modifier.size(40.dp))
+        }
+        Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(kind, style = SectionLabel, color = Muted)
     }
-    return Tile(label, color) { onClick(this) }
+}
+
+private val SectionLabel = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.5.sp)
+private val BarIconSize = 30.dp
+
+private fun Block.toTile(onClick: (Block) -> Unit): Tile {
+    val click = { onClick(this) }
+    return when (this) {
+        is Block.Group -> when (icon) {
+            Icon.Radio -> Tile(name, R.drawable.ph_radio, RadioColor, click)
+            Icon.Spotify -> Tile(name, R.drawable.ph_spotify_logo, SpotifyColor, click)
+            null -> Tile(name, onClick = click)
+        }
+        is Block.Radio -> Tile(name, onClick = click)
+        // Without a uri it opens the app itself, so the logo says it all.
+        is Block.Spotify -> if (uri == null) Tile(name, R.drawable.ph_spotify_logo, SpotifyColor, click) else Tile(name, onClick = click)
+        Block.Contacts -> Tile("Telefono", R.drawable.ph_phone, onClick = click)
+        Block.Waze -> Tile("Waze", R.drawable.ph_navigation_arrow, onClick = click)
+        Block.Voice -> Tile("Assistente vocale", R.drawable.ph_microphone, onClick = click)
+    }
 }

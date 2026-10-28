@@ -9,9 +9,15 @@ ADB := $(ANDROID_HOME)/platform-tools/adb
 APP_ID := dev.ftassi.cockpit
 KEYSTORE_DIR := $(HOME)/.config/cockpit
 
+# Phosphor Icons (MIT) and Barlow Semi Condensed (OFL), committed under res/.
+PHOSPHOR_VERSION := 2.1.1
+ICONS := radio spotify-logo play pause phone navigation-arrow microphone power car arrow-left
+FONTS_URL := https://raw.githubusercontent.com/google/fonts/main/ofl/barlowsemicondensed
+FONT_WEIGHTS := Medium SemiBold
+
 export ANDROID_HOME
 
-.PHONY: help deps system-deps sdk devices adb-pair adb-connect keystore build test install install-release run logs awake screenshot usb-devices
+.PHONY: help deps system-deps sdk devices adb-pair adb-connect keystore build test install install-release run logs awake screenshot usb-devices icons fonts
 
 help: ## Show this help
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -83,3 +89,13 @@ screenshot: ## Save a screenshot of the phone to screenshots/latest.png
 
 usb-devices: ## List USB devices the phone has hosted (vendor/product ids for the USB filter)
 	$(ADB) shell dumpsys usb | sed -n '/host_manager={/,$$p' | grep -E 'manufacturer=[0-9]+$$|product=[0-9]+$$' | paste - - | sort -u
+
+icons: ## Regenerate the Phosphor vector drawables listed in ICONS
+	python3 scripts/phosphor_icons.py app/src/main/res/drawable $(PHOSPHOR_VERSION) $(ICONS)
+
+fonts: ## Download the Barlow Semi Condensed weights the UI uses, plus its license
+	mkdir -p app/src/main/res/font licenses
+	for w in $(FONT_WEIGHTS); do \
+		curl -fsSL -o app/src/main/res/font/barlow_semi_condensed_$$(echo $$w | tr A-Z a-z).ttf $(FONTS_URL)/BarlowSemiCondensed-$$w.ttf || exit 1; \
+	done
+	curl -fsSL -o licenses/barlow-semi-condensed-OFL.txt $(FONTS_URL)/OFL.txt

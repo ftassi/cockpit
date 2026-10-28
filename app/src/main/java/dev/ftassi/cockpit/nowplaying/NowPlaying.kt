@@ -4,6 +4,7 @@ import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -23,6 +24,7 @@ sealed interface NowPlayingState {
     data class Active(
         val title: String,
         val subtitle: String?,
+        val artwork: Bitmap?,
         val isPlaying: Boolean,
         private val controller: MediaController,
     ) : NowPlayingState {
@@ -84,6 +86,7 @@ class NowPlayingTracker(private val context: Context) {
             NowPlayingState.Active(
                 title = chosen.title()!!,
                 subtitle = chosen.metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST),
+                artwork = chosen.metadata?.artwork(),
                 isPlaying = chosen.isPlaying(),
                 controller = chosen,
             )
@@ -122,6 +125,10 @@ fun openListenerSettings(context: Context) {
 }
 
 private fun MediaController.title(): String? = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
+
+// Players fill either key, so try both.
+private fun MediaMetadata.artwork(): Bitmap? =
+    getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: getBitmap(MediaMetadata.METADATA_KEY_ART)
 
 private fun MediaController.isPlaying(): Boolean = playbackState?.state.let {
     it == PlaybackState.STATE_PLAYING || it == PlaybackState.STATE_BUFFERING

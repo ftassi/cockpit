@@ -11,7 +11,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import dev.ftassi.cockpit.contacts.loadFavorites
 import dev.ftassi.cockpit.launch.call
@@ -36,10 +35,10 @@ fun ContactsScreen(modifier: Modifier = Modifier) {
 
     val tiles = buildList {
         if (!granted) {
-            add(Tile("Consenti contatti e chiamate", Color(0xFFEF6C00)) { request.launch(permissions) })
+            add(Tile("Consenti contatti e chiamate", tint = Accent) { request.launch(permissions) })
         }
-        favorites.forEach { add(Tile(it.name, Color(0xFF2E7D32)) { call(context, it.number) }) }
-        add(Tile("Tastierino", Color(0xFF37474F)) { openDialer(context) })
+        favorites.forEach { add(Tile(it.name) { call(context, it.number) }) }
+        add(Tile("Tastierino") { openDialer(context) })
     }
     TileGrid(tiles, modifier)
 }

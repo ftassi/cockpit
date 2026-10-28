@@ -11,7 +11,7 @@ class ConfigTest {
         val json = """
             {
               "blocks": [
-                { "type": "group", "name": "Musica", "blocks": [
+                { "type": "group", "name": "Musica", "icon": "spotify", "blocks": [
                     { "type": "radio", "name": "Test FM", "url": "https://stream.example/test.mp3" },
                     { "type": "spotify", "name": "Test list", "uri": "spotify:playlist:abc" }
                 ]},
@@ -35,6 +35,7 @@ class ConfigTest {
                         Block.Radio(name = "Test FM", url = "https://stream.example/test.mp3"),
                         Block.Spotify(name = "Test list", uri = "spotify:playlist:abc"),
                     ),
+                    icon = Icon.Spotify,
                 ),
                 Block.Spotify(name = "Spotify", uri = null),
                 Block.Contacts,
