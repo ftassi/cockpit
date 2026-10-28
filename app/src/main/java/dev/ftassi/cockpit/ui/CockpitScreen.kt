@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,8 +14,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,11 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import dev.ftassi.cockpit.R
 import dev.ftassi.cockpit.config.Block
 import dev.ftassi.cockpit.config.Icon
@@ -40,8 +38,7 @@ import dev.ftassi.cockpit.launch.startVoiceAssist
 import dev.ftassi.cockpit.nowplaying.NowPlayingState
 
 private val BarHeight = 84.dp
-private const val SpotifyRowSize = 4
-private val Caption = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium)
+private val SpotifyPillHeight = 88.dp
 
 @Composable
 fun CockpitScreen(
@@ -79,12 +76,11 @@ fun CockpitScreen(
     ) {
         val content = Modifier.weight(1f)
         when (val screen = stack.lastOrNull()) {
-            // Spotify gets a row of its own under the stations, which take the
+            // Spotify gets a pill of its own under the stations, which take the
             // rest of the screen.
             null -> {
                 TileGrid(blocks.filter { it !is Block.Spotify }.map(toTile), content)
-                val spotify = blocks.filterIsInstance<Block.Spotify>()
-                if (spotify.isNotEmpty()) SpotifyRow(spotify, onBlockClick)
+                blocks.filterIsInstance<Block.Spotify>().forEach { SpotifyPill(it, onBlockClick) }
             }
             is Block.Group -> TileGrid(screen.blocks.map(toTile), content)
             else -> ContactsScreen(content)
@@ -125,33 +121,21 @@ private fun BarButton(label: String, @DrawableRes icon: Int, modifier: Modifier,
     }
 }
 
-// Square tiles, four to a row whatever their number, so they keep their size;
-// Spotify recents will fill the free slots.
+// A full-width pill under the stations, until Spotify recents give it
+// something to show next to the logo.
 @Composable
-private fun SpotifyRow(blocks: List<Block.Spotify>, onClick: (Block) -> Unit) {
-    val shown = blocks.take(SpotifyRowSize)
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        for (block in shown) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Surface(
-                    onClick = { onClick(block) },
-                    modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-                    shape = RoundedCornerShape(18.dp),
-                    color = SpotifyTone,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            painterResource(R.drawable.ph_spotify_logo),
-                            contentDescription = block.name,
-                            tint = SpotifyColor,
-                            modifier = Modifier.size(40.dp),
-                        )
-                    }
-                }
-                Text(block.name, style = Caption, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
+private fun SpotifyPill(block: Block.Spotify, onClick: (Block) -> Unit) {
+    Surface(
+        onClick = { onClick(block) },
+        modifier = Modifier.fillMaxWidth().height(SpotifyPillHeight),
+        shape = CircleShape,
+        color = SpotifyTone,
+    ) {
+        Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(painterResource(R.drawable.ph_spotify_logo), contentDescription = null, tint = SpotifyColor, modifier = Modifier.size(40.dp))
+            Spacer(Modifier.width(12.dp))
+            Text(block.name, style = MaterialTheme.typography.headlineSmall)
         }
-        repeat(SpotifyRowSize - shown.size) { Spacer(Modifier.weight(1f)) }
     }
 }
 
