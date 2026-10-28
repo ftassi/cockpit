@@ -1,10 +1,10 @@
 {
   "blocks": [
-    { "type": "radio", "name": "Radio Skyline", "url": "https://rblive.it:8010/radio.mp3", "logo": "logos/radio-skyline.png" },
-    { "type": "radio", "name": "Rai Radio 2", "url": "https://icestreaming.rai.it/2.mp3", "logo": "logos/rai-radio-2.jpg" },
     { "type": "radio", "name": "Rai Radio 1", "url": "https://icestreaming.rai.it/1.mp3", "logo": "logos/rai-radio-1.jpg" },
-    { "type": "radio", "name": "Radio Freccia", "url": "https://dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S3160845/0tuSetc8UFkF/playlist_audio.m3u8", "logo": "logos/radio-freccia.png" },
+    { "type": "radio", "name": "Rai Radio 2", "url": "https://icestreaming.rai.it/2.mp3", "logo": "logos/rai-radio-2.jpg" },
     { "type": "radio", "name": "Virgin Radio", "url": "https://icecast.unitedradio.it/Virgin.mp3", "logo": "logos/virgin-radio.png" },
+    { "type": "radio", "name": "Radio Freccia", "url": "https://dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S3160845/0tuSetc8UFkF/playlist_audio.m3u8", "logo": "logos/radio-freccia.png" },
+    { "type": "radio", "name": "Radio Skyline", "url": "https://rblive.it:8010/radio.mp3", "logo": "logos/radio-skyline.png" },
     { "type": "group", "name": "Altre radio", "icon": "search", "blocks": [
         { "type": "radio", "name": "Skyline Jazz", "url": "https://rblive.it:8030/radio.mp3" }
     ]},

@@ -41,13 +41,17 @@ private val MinRowHeight = 120.dp
 private val Shape = RoundedCornerShape(24.dp)
 private val Badge = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.3.sp)
 
+// The tile around a logo takes the colour of the logo's edge, so the logo
+// can be shown whole on a tile of any proportion without a visible seam.
+data class Logo(val image: ImageBitmap, val background: Color)
+
 // A logo replaces everything else: it says which station it is on its own.
 data class Tile(
     val label: String,
     val color: Color = SurfaceTone,
     @DrawableRes val icon: Int? = null,
     val iconTint: Color = Color.White,
-    val logo: ImageBitmap? = null,
+    val logo: Logo? = null,
     val playing: Boolean = false,
     val onClick: () -> Unit,
 )
@@ -88,13 +92,17 @@ fun TileBox(tile: Tile, modifier: Modifier, textStyle: TextStyle = MaterialTheme
         onClick = tile.onClick,
         modifier = modifier.fillMaxSize(),
         shape = Shape,
-        color = if (filled) RadioColor else tile.color,
+        color = when {
+            filled -> RadioColor
+            tile.logo != null -> tile.logo.background
+            else -> tile.color
+        },
         contentColor = if (filled) Color.Black else Color.White,
         border = if (tile.playing && tile.logo != null) BorderStroke(4.dp, RadioColor) else null,
     ) {
         if (tile.logo != null) {
             Box {
-                Image(tile.logo, contentDescription = tile.label, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                Image(tile.logo.image, contentDescription = tile.label, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 if (tile.playing) {
                     Surface(
                         modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
@@ -122,5 +130,9 @@ fun TileBox(tile: Tile, modifier: Modifier, textStyle: TextStyle = MaterialTheme
     }
 }
 
-fun loadLogo(context: Context, path: String): ImageBitmap =
-    context.assets.open(path).use { BitmapFactory.decodeStream(it) }.asImageBitmap()
+// Transparent logos (no solid edge) sit on the plain tile surface.
+fun loadLogo(context: Context, path: String): Logo {
+    val bitmap = context.assets.open(path).use { BitmapFactory.decodeStream(it) }
+    val edge = Color(bitmap.getPixel(0, 0))
+    return Logo(bitmap.asImageBitmap(), if (edge.alpha == 1f) edge else SurfaceTone)
+}

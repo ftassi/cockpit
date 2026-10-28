@@ -24,7 +24,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -55,7 +54,7 @@ fun CockpitScreen(
     // Screens opened on top of the home: only Group and Contacts.
     val stack = remember { mutableStateListOf<Block>() }
     BackHandler(enabled = stack.isNotEmpty()) { stack.removeAt(stack.lastIndex) }
-    val logos = remember { mutableMapOf<String, ImageBitmap>() }
+    val logos = remember { mutableMapOf<String, Logo>() }
 
     val onBlockClick: (Block) -> Unit = { block ->
         when (block) {
@@ -156,7 +155,7 @@ private fun SpotifyRow(blocks: List<Block.Spotify>, onClick: (Block) -> Unit) {
     }
 }
 
-private fun Block.toTile(onAir: String?, logo: (String) -> ImageBitmap, onClick: () -> Unit): Tile = when (this) {
+private fun Block.toTile(onAir: String?, logo: (String) -> Logo, onClick: () -> Unit): Tile = when (this) {
     is Block.Group -> when (icon) {
         Icon.Search -> Tile(name, icon = R.drawable.ph_magnifying_glass, iconTint = RadioColor, onClick = onClick)
         null -> Tile(name, onClick = onClick)
