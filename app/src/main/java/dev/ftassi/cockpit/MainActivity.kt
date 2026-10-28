@@ -2,6 +2,7 @@ package dev.ftassi.cockpit
 
 import android.content.ComponentName
 import android.content.Intent
+import android.hardware.usb.UsbManager
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
@@ -147,4 +148,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private fun Intent.isCarModeLink() = dataString == CAR_MODE_LINK
+// The car mode link, or the car's USB audio splitter being plugged in (the
+// manifest's USB filter only lets that device through).
+private fun Intent.isCarModeLink() =
+    dataString == CAR_MODE_LINK || action == UsbManager.ACTION_USB_DEVICE_ATTACHED

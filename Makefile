@@ -10,7 +10,7 @@ APP_ID := dev.ftassi.cockpit
 
 export ANDROID_HOME
 
-.PHONY: help deps system-deps sdk devices adb-pair adb-connect build test install run logs awake screenshot
+.PHONY: help deps system-deps sdk devices adb-pair adb-connect build test install run logs awake screenshot usb-devices
 
 help: ## Show this help
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -65,3 +65,6 @@ awake: ## Keep the phone screen on while plugged into USB, wake it and dismiss t
 screenshot: ## Save a screenshot of the phone to screenshots/latest.png
 	mkdir -p screenshots
 	$(ADB) exec-out screencap -p > screenshots/latest.png
+
+usb-devices: ## List USB devices the phone has hosted (vendor/product ids for the USB filter)
+	$(ADB) shell dumpsys usb | sed -n '/host_manager={/,$$p' | grep -E 'manufacturer=[0-9]+$$|product=[0-9]+$$' | paste - - | sort -u
