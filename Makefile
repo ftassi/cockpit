@@ -7,10 +7,11 @@ SDK_PACKAGES := "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
 SDKMANAGER := $(ANDROID_HOME)/cmdline-tools/latest/bin/sdkmanager
 ADB := $(ANDROID_HOME)/platform-tools/adb
 APP_ID := dev.ftassi.cockpit
+KEYSTORE_DIR := $(HOME)/.config/cockpit
 
 export ANDROID_HOME
 
-.PHONY: help deps system-deps sdk devices adb-pair adb-connect build test install run logs awake screenshot usb-devices
+.PHONY: help deps system-deps sdk devices adb-pair adb-connect keystore build test install install-release run logs awake screenshot usb-devices
 
 help: ## Show this help
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -42,6 +43,17 @@ adb-pair: ## Pair over Wi-Fi: make adb-pair ADDR=ip:port CODE=123456 (both from 
 adb-connect: ## Connect over Wi-Fi: make adb-connect ADDR=ip:port
 	$(ADB) connect $(ADDR)
 
+keystore: ## Create the signing key in ~/.config/cockpit (never overwrites; back it up!)
+	@test ! -e $(KEYSTORE_DIR)/release.jks || { echo "$(KEYSTORE_DIR)/release.jks already exists"; exit 1; }
+	@mkdir -p -m 700 $(KEYSTORE_DIR)
+	@umask 077; pass=$$(openssl rand -hex 24); \
+	keytool -genkeypair -keystore $(KEYSTORE_DIR)/release.jks -storetype PKCS12 \
+		-alias cockpit -keyalg RSA -keysize 4096 -validity 36500 \
+		-dname "CN=Cockpit" -storepass "$$pass" -keypass "$$pass" >/dev/null 2>&1 && \
+	printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=cockpit\nkeyPassword=%s\n' \
+		"$(KEYSTORE_DIR)/release.jks" "$$pass" "$$pass" > $(KEYSTORE_DIR)/keystore.properties
+	@echo "Created $(KEYSTORE_DIR)/release.jks and keystore.properties"
+
 build: ## Build the debug APK
 	./gradlew assembleDebug
 
@@ -50,6 +62,9 @@ test: ## Run unit tests
 
 install: ## Build and install the debug APK on the connected phone
 	./gradlew installDebug
+
+install-release: ## Build and install the release APK (the one for the car)
+	./gradlew installRelease
 
 run: install ## Install and launch the app
 	$(ADB) shell am start -n $(APP_ID)/.MainActivity

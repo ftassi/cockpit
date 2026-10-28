@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+// One stable signing key for every build, kept outside the repo (created by
+// `make keystore`): Android refuses updates signed with a different key, and
+// the Spotify SDK registration is tied to its SHA1.
+val keystoreProperties = File(System.getProperty("user.home"), ".config/cockpit/keystore.properties")
+if (!keystoreProperties.exists()) {
+    throw GradleException("Missing $keystoreProperties: run `make keystore` first")
 }
 
 android {
@@ -14,6 +24,25 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "0.1"
+    }
+
+    signingConfigs {
+        create("cockpit") {
+            val props = Properties().apply { keystoreProperties.inputStream().use(::load) }
+            storeFile = File(props.getProperty("storeFile"))
+            storePassword = props.getProperty("storePassword")
+            keyAlias = props.getProperty("keyAlias")
+            keyPassword = props.getProperty("keyPassword")
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("cockpit")
+        }
+        release {
+            signingConfig = signingConfigs.getByName("cockpit")
+        }
     }
 
     buildFeatures {
