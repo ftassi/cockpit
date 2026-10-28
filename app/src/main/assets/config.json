@@ -13,6 +13,10 @@
   "bar": [
     { "type": "contacts" },
     { "type": "waze" },
-    { "type": "voice" }
+    { "type": "voice" },
+    { "type": "group", "name": "Auto", "icon": "car", "blocks": [
+        { "type": "app", "name": "EasyPark", "package": "net.easypark.android" },
+        { "type": "app", "name": "Prezzi Benzina", "package": "org.vernazza.androidfuel" }
+    ]}
   ]
 }

@@ -14,6 +14,11 @@
     <queries>
         <package android:name="com.spotify.music" />
         <package android:name="com.waze" />
+        <!-- Apps configured as "app" blocks: any launchable app may be one. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
     </queries>
 
     <application

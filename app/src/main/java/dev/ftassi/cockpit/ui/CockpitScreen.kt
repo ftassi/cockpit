@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import dev.ftassi.cockpit.R
 import dev.ftassi.cockpit.config.Block
 import dev.ftassi.cockpit.config.Icon
+import dev.ftassi.cockpit.launch.openApp
 import dev.ftassi.cockpit.launch.openSpotify
 import dev.ftassi.cockpit.launch.openWaze
 import dev.ftassi.cockpit.launch.startVoiceAssist
@@ -51,13 +52,14 @@ fun CockpitScreen(
     // Screens opened on top of the home: only Group and Contacts.
     val stack = remember { mutableStateListOf<Block>() }
     BackHandler(enabled = stack.isNotEmpty()) { stack.removeAt(stack.lastIndex) }
-    val logos = remember { mutableMapOf<String, Logo>() }
+    val logos = remember { mutableMapOf<String, Logo?>() }
 
     val onBlockClick: (Block) -> Unit = { block ->
         when (block) {
             is Block.Group, Block.Contacts -> stack.add(block)
             is Block.Radio -> onPlay(block)
             is Block.Spotify -> openSpotify(context, block.uri)
+            is Block.App -> openApp(context, block.packageName, block.name)
             Block.Waze -> openWaze(context)
             Block.Voice -> startVoiceAssist(context)
         }
@@ -67,7 +69,12 @@ fun CockpitScreen(
         ?.takeIf { it.isPlaying && it.source == context.packageName }
         ?.title
     val toTile: (Block) -> Tile = { block ->
-        block.toTile(onAir, { path -> logos.getOrPut(path) { loadLogo(context, path) } }) { onBlockClick(block) }
+        val logo = when (block) {
+            is Block.Radio -> block.logo?.let { path -> logos.getOrPut(path) { loadLogo(context, path) } }
+            is Block.App -> logos.getOrPut(block.packageName) { loadAppIcon(context, block.packageName) }
+            else -> null
+        }
+        block.toTile(onAir, logo) { onBlockClick(block) }
     }
 
     Column(
@@ -103,6 +110,7 @@ fun CockpitScreen(
                         Block.Contacts -> "Telefono" to R.drawable.ph_phone
                         Block.Waze -> "Waze" to R.drawable.ph_navigation_arrow
                         Block.Voice -> "Assistente vocale" to R.drawable.ph_microphone
+                        is Block.Group -> block.name to (block.icon?.drawable() ?: continue)
                         else -> continue
                     }
                     BarButton(label, icon, slot) { onBlockClick(block) }
@@ -139,12 +147,15 @@ private fun SpotifyPill(block: Block.Spotify, onClick: (Block) -> Unit) {
     }
 }
 
-private fun Block.toTile(onAir: String?, logo: (String) -> Logo, onClick: () -> Unit): Tile = when (this) {
-    is Block.Group -> when (icon) {
-        Icon.Search -> Tile(name, icon = R.drawable.ph_magnifying_glass, iconTint = RadioColor, onClick = onClick)
-        null -> Tile(name, onClick = onClick)
-    }
-    is Block.Radio -> Tile(name, RadioTone, logo = this.logo?.let(logo), playing = name == onAir, onClick = onClick)
+private fun Icon.drawable() = when (this) {
+    Icon.Search -> R.drawable.ph_magnifying_glass
+    Icon.Car -> R.drawable.ph_car
+}
+
+private fun Block.toTile(onAir: String?, logo: Logo?, onClick: () -> Unit): Tile = when (this) {
+    is Block.Group -> Tile(name, icon = icon?.drawable(), iconTint = RadioColor, onClick = onClick)
+    is Block.Radio -> Tile(name, RadioTone, logo = logo, playing = name == onAir, onClick = onClick)
+    is Block.App -> Tile(name, logo = logo, onClick = onClick)
     is Block.Spotify -> Tile(name, SpotifyTone, R.drawable.ph_spotify_logo, SpotifyColor, onClick = onClick)
     Block.Contacts -> Tile("Telefono", icon = R.drawable.ph_phone, onClick = onClick)
     Block.Waze -> Tile("Waze", icon = R.drawable.ph_navigation_arrow, onClick = onClick)

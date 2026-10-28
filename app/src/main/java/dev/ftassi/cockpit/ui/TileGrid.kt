@@ -1,6 +1,9 @@
 package dev.ftassi.cockpit.ui
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.BitmapFactory
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
@@ -33,11 +36,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.drawable.toBitmap
 
 val Gap = 12.dp
 private val MinRowHeight = 120.dp
+// Few tiles would otherwise stretch into tall slabs.
+private val MaxRowHeight = 200.dp
 private val Shape = RoundedCornerShape(24.dp)
 private val Badge = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.3.sp)
 
@@ -64,7 +69,7 @@ fun TileGrid(tiles: List<Tile>, modifier: Modifier = Modifier) {
     val rows = tiles.chunked(2)
     BoxWithConstraints(modifier) {
         val fitted = (maxHeight - Gap * (rows.size - 1)) / rows.size
-        val rowHeight = max(fitted, MinRowHeight)
+        val rowHeight = fitted.coerceIn(MinRowHeight, MaxRowHeight)
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Gap),
@@ -135,4 +140,16 @@ fun loadLogo(context: Context, path: String): Logo {
     val bitmap = context.assets.open(path).use { BitmapFactory.decodeStream(it) }
     val edge = Color(bitmap.getPixel(0, 0))
     return Logo(bitmap.asImageBitmap(), if (edge.alpha == 1f) edge else SurfaceTone)
+}
+
+// The app's own launcher icon, with a margin so it does not fill the tile
+// edge to edge; null when the app is not installed, so its tile falls back
+// to the name.
+fun loadAppIcon(context: Context, packageName: String): Logo? = try {
+    val icon = context.packageManager.getApplicationIcon(packageName).toBitmap(512, 512)
+    val framed = Bitmap.createBitmap(800, 800, Bitmap.Config.ARGB_8888)
+    Canvas(framed).drawBitmap(icon, 144f, 144f, null)
+    Logo(framed.asImageBitmap(), SurfaceTone)
+} catch (_: PackageManager.NameNotFoundException) {
+    null
 }

@@ -32,7 +32,7 @@ fun call(context: Context, number: String) =
 fun startVoiceAssist(context: Context) =
     start(context, Intent("android.intent.action.VOICE_ASSIST"), "Assistente vocale")
 
-private fun openApp(context: Context, packageName: String, appName: String) {
+fun openApp(context: Context, packageName: String, appName: String) {
     val intent = context.packageManager.getLaunchIntentForPackage(packageName)
     if (intent == null) notAvailable(context, appName) else start(context, intent, appName)
 }

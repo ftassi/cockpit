@@ -17,7 +17,8 @@ class ConfigTest {
                 ]},
                 { "type": "spotify" },
                 { "type": "contacts" },
-                { "type": "waze" }
+                { "type": "waze" },
+                { "type": "app", "name": "Test app", "package": "com.example.test" }
               ],
               "bar": [
                 { "type": "voice" }
@@ -40,6 +41,7 @@ class ConfigTest {
                 Block.Spotify(name = "Spotify", uri = null),
                 Block.Contacts,
                 Block.Waze,
+                Block.App(name = "Test app", packageName = "com.example.test"),
             ),
             config.blocks,
         )

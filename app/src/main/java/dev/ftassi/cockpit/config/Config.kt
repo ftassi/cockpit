@@ -33,6 +33,11 @@ sealed interface Block {
     @SerialName("contacts")
     data object Contacts : Block
 
+    // Any installed app, opened by its package name.
+    @Serializable
+    @SerialName("app")
+    data class App(val name: String, @SerialName("package") val packageName: String) : Block
+
     @Serializable
     @SerialName("waze")
     data object Waze : Block
@@ -46,6 +51,7 @@ sealed interface Block {
 @Serializable
 enum class Icon {
     @SerialName("search") Search,
+    @SerialName("car") Car,
 }
 
 // The station car mode falls back to before anything has been played.
