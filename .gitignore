@@ -4,3 +4,6 @@ build/
 local.properties
 .idea/
 *.iml
+
+# The wrapper must be versioned despite global *.jar ignores
+!gradle/wrapper/gradle-wrapper.jar
