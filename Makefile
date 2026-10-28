@@ -10,7 +10,7 @@ APP_ID := dev.ftassi.cockpit
 
 export ANDROID_HOME
 
-.PHONY: help deps system-deps sdk devices adb-pair adb-connect build install run logs
+.PHONY: help deps system-deps sdk devices adb-pair adb-connect build install run logs awake screenshot
 
 help: ## Show this help
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -53,3 +53,12 @@ run: install ## Install and launch the app
 
 logs: ## Show logcat for the running app
 	$(ADB) logcat --pid=$$($(ADB) shell pidof -s $(APP_ID))
+
+awake: ## Keep the phone screen on while plugged into USB, wake it and dismiss the lock screen
+	$(ADB) shell svc power stayon usb
+	$(ADB) shell input keyevent KEYCODE_WAKEUP
+	$(ADB) shell wm dismiss-keyguard
+
+screenshot: ## Save a screenshot of the phone to screenshots/latest.png
+	mkdir -p screenshots
+	$(ADB) exec-out screencap -p > screenshots/latest.png

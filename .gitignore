@@ -7,3 +7,4 @@ local.properties
 
 # The wrapper must be versioned despite global *.jar ignores
 !gradle/wrapper/gradle-wrapper.jar
+screenshots/
