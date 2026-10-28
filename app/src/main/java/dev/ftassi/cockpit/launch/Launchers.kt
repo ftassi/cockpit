@@ -21,6 +21,10 @@ fun openSpotify(context: Context, uri: String?) {
 
 fun openDialer(context: Context) = start(context, Intent(Intent.ACTION_DIAL), "Telefono")
 
+// Requires CALL_PHONE: places the call without going through the dialer.
+fun call(context: Context, number: String) =
+    start(context, Intent(Intent.ACTION_CALL, "tel:$number".toUri()), "Telefono")
+
 // ACTION_VOICE_COMMAND would be the obvious choice, but the Google app ignores
 // it unless a Bluetooth headset is connected. VOICE_ASSIST asks once which
 // assistant to use ("Sempre" makes it stick). The constant is hidden from the
