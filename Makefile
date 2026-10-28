@@ -36,8 +36,8 @@ $(SDKMANAGER):
 devices: ## List connected devices
 	$(ADB) devices -l
 
-adb-pair: ## Pair over Wi-Fi: make adb-pair ADDR=ip:port (pairing port from the phone)
-	$(ADB) pair $(ADDR)
+adb-pair: ## Pair over Wi-Fi: make adb-pair ADDR=ip:port CODE=123456 (both from the pairing dialog)
+	$(ADB) pair $(ADDR) $(CODE)
 
 adb-connect: ## Connect over Wi-Fi: make adb-connect ADDR=ip:port
 	$(ADB) connect $(ADDR)
