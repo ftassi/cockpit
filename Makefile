@@ -10,7 +10,7 @@ APP_ID := dev.ftassi.cockpit
 
 export ANDROID_HOME
 
-.PHONY: help deps system-deps sdk devices adb-pair adb-connect build install run logs awake screenshot
+.PHONY: help deps system-deps sdk devices adb-pair adb-connect build test install run logs awake screenshot
 
 help: ## Show this help
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -44,6 +44,9 @@ adb-connect: ## Connect over Wi-Fi: make adb-connect ADDR=ip:port
 
 build: ## Build the debug APK
 	./gradlew assembleDebug
+
+test: ## Run unit tests
+	./gradlew testDebugUnitTest
 
 install: ## Build and install the debug APK on the connected phone
 	./gradlew installDebug

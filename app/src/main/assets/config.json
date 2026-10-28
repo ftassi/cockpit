@@ -1,0 +1,9 @@
+{
+  "blocks": [
+    { "type": "radio", "name": "Radio Skyline", "url": "https://rblive.it:8010/radio.mp3" },
+    { "type": "spotify" },
+    { "type": "waze" },
+    { "type": "maps" },
+    { "type": "phone" }
+  ]
+}
