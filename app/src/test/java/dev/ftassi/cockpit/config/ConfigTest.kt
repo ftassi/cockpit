@@ -11,8 +11,8 @@ class ConfigTest {
         val json = """
             {
               "blocks": [
-                { "type": "group", "name": "Musica", "icon": "spotify", "blocks": [
-                    { "type": "radio", "name": "Test FM", "url": "https://stream.example/test.mp3" },
+                { "type": "group", "name": "Musica", "icon": "search", "blocks": [
+                    { "type": "radio", "name": "Test FM", "url": "https://stream.example/test.mp3", "logo": "logos/test.png" },
                     { "type": "spotify", "name": "Test list", "uri": "spotify:playlist:abc" }
                 ]},
                 { "type": "spotify" },
@@ -32,10 +32,10 @@ class ConfigTest {
                 Block.Group(
                     name = "Musica",
                     blocks = listOf(
-                        Block.Radio(name = "Test FM", url = "https://stream.example/test.mp3"),
+                        Block.Radio(name = "Test FM", url = "https://stream.example/test.mp3", logo = "logos/test.png"),
                         Block.Spotify(name = "Test list", uri = "spotify:playlist:abc"),
                     ),
-                    icon = Icon.Spotify,
+                    icon = Icon.Search,
                 ),
                 Block.Spotify(name = "Spotify", uri = null),
                 Block.Contacts,
@@ -51,6 +51,9 @@ class ConfigTest {
         val config = parseConfig(File("src/main/assets/config.json").readText())
 
         assertTrue(config.blocks.isNotEmpty())
+        for (logo in config.blocks.mapNotNull { (it as? Block.Radio)?.logo }) {
+            assertTrue("missing $logo", File("src/main/assets/$logo").isFile)
+        }
     }
 
     @Test

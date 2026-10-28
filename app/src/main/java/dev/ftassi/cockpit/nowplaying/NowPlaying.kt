@@ -28,6 +28,9 @@ sealed interface NowPlayingState {
         val isPlaying: Boolean,
         private val controller: MediaController,
     ) : NowPlayingState {
+        // The app playing it, e.g. Cockpit itself for the radio.
+        val source: String get() = controller.packageName
+
         fun togglePlayPause() {
             if (isPlaying) controller.transportControls.pause() else controller.transportControls.play()
         }

@@ -13,9 +13,10 @@ import dev.ftassi.cockpit.R
 val Accent = Color(0xFF7BE495)
 val RadioColor = Color(0xFFFF7A59)
 val SpotifyColor = Color(0xFF1ED760)
-val Outline = Color(0xFF2A2F36)
 val Muted = Color(0xFF8A939D)
-val Placeholder = Color(0xFF1A1D21)
+val SurfaceTone = Color(0xFF14171B)
+val RadioTone = Color(0xFF2A1712)
+val SpotifyTone = Color(0xFF0E2417)
 
 private val Barlow = FontFamily(
     Font(R.font.barlow_semi_condensed_medium, FontWeight.Medium),

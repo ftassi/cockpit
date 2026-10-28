@@ -17,8 +17,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -48,8 +46,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var nowPlaying: NowPlayingTracker
     private lateinit var carMode: CarMode
     private lateinit var recents: RecentRadios
-    private var carModeActive by mutableStateOf(false)
-    private var recentRadios by mutableStateOf(emptyList<Block.Radio>())
+    private var recentRadios = emptyList<Block.Radio>()
     // Set by a car mode link, handled in onResume once the controller exists.
     private var carModeRequested = false
 
@@ -85,11 +82,7 @@ class MainActivity : ComponentActivity() {
                         config.blocks,
                         config.bar,
                         nowPlayingState,
-                        recentRadios,
-                        carModeActive = carModeActive,
                         onPlay = ::play,
-                        onEnterCarMode = ::enterCarMode,
-                        onExitCarMode = ::exitCarMode,
                     )
                 }
             }
@@ -162,7 +155,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showCarMode(active: Boolean) {
-        carModeActive = active
         if (active) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
@@ -184,6 +176,8 @@ class MainActivity : ComponentActivity() {
                             .setStation(radio.name)
                             // System media controls print a missing artist as "null".
                             .setArtist("In diretta")
+                            // Shown by the now playing bar and the system media controls.
+                            .setArtworkData(radio.logo?.let { assets.open(it).use { s -> s.readBytes() } }, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
                             .build(),
                     )
                     .build(),

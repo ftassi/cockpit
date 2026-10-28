@@ -13,15 +13,15 @@ data class Config(val blocks: List<Block>, val bar: List<Block>)
 // The JSON "type" field selects the variant.
 @Serializable
 sealed interface Block {
-    // Opens a sub-screen with its own blocks. With an icon, its tile shows
-    // the icon instead of the name.
+    // Opens a sub-screen with its own blocks.
     @Serializable
     @SerialName("group")
     data class Group(val name: String, val blocks: List<Block>, val icon: Icon? = null) : Block
 
+    // logo: an image under assets/, shown instead of the name.
     @Serializable
     @SerialName("radio")
-    data class Radio(val name: String, val url: String) : Block
+    data class Radio(val name: String, val url: String, val logo: String? = null) : Block
 
     // A null uri opens the Spotify app on its home screen.
     @Serializable
@@ -45,8 +45,7 @@ sealed interface Block {
 
 @Serializable
 enum class Icon {
-    @SerialName("radio") Radio,
-    @SerialName("spotify") Spotify,
+    @SerialName("search") Search,
 }
 
 // The station car mode falls back to before anything has been played.

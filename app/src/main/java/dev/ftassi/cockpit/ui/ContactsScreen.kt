@@ -35,7 +35,7 @@ fun ContactsScreen(modifier: Modifier = Modifier) {
 
     val tiles = buildList {
         if (!granted) {
-            add(Tile("Consenti contatti e chiamate", tint = Accent) { request.launch(permissions) })
+            add(Tile("Consenti contatti e chiamate", color = RadioTone) { request.launch(permissions) })
         }
         favorites.forEach { add(Tile(it.name) { call(context, it.number) }) }
         add(Tile("Tastierino") { openDialer(context) })

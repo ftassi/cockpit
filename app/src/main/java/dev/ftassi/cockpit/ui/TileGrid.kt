@@ -1,7 +1,10 @@
 package dev.ftassi.cockpit.ui
 
+import android.content.Context
+import android.graphics.BitmapFactory
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,27 +25,36 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
+import androidx.compose.ui.unit.sp
 
 val Gap = 12.dp
-private val MinRowHeight = 160.dp
+private val MinRowHeight = 120.dp
+private val Shape = RoundedCornerShape(24.dp)
+private val Badge = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.3.sp)
 
-// With an icon, the label is only read out by accessibility services.
+// A logo replaces everything else: it says which station it is on its own.
 data class Tile(
     val label: String,
+    val color: Color = SurfaceTone,
     @DrawableRes val icon: Int? = null,
-    val tint: Color = Color.White,
+    val iconTint: Color = Color.White,
+    val logo: ImageBitmap? = null,
+    val playing: Boolean = false,
     val onClick: () -> Unit,
 )
 
 // Two tiles per row; an odd last tile takes the whole row. Rows share the
 // available height, and only scroll when that would make them too small to
-// hit without looking.
+// hit without looking. Positions never move, so they can be found by memory.
 @Composable
 fun TileGrid(tiles: List<Tile>, modifier: Modifier = Modifier) {
     val rows = tiles.chunked(2)
@@ -68,31 +80,47 @@ fun TileGrid(tiles: List<Tile>, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun TileBox(
-    tile: Tile,
-    modifier: Modifier,
-    textStyle: TextStyle = MaterialTheme.typography.headlineLarge,
-    iconSize: Dp = 72.dp,
-) {
+fun TileBox(tile: Tile, modifier: Modifier, textStyle: TextStyle = MaterialTheme.typography.headlineMedium) {
+    // Without a logo the playing tile turns coral; a logo keeps its colours
+    // and gets a coral frame instead.
+    val filled = tile.playing && tile.logo == null
     Surface(
         onClick = tile.onClick,
         modifier = modifier.fillMaxSize(),
-        shape = RoundedCornerShape(14.dp),
-        color = Color.Black,
-        contentColor = tile.tint,
-        border = BorderStroke(1.5.dp, Outline),
+        shape = Shape,
+        color = if (filled) RadioColor else tile.color,
+        contentColor = if (filled) Color.Black else Color.White,
+        border = if (tile.playing && tile.logo != null) BorderStroke(4.dp, RadioColor) else null,
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (tile.icon != null) {
-                Icon(painterResource(tile.icon), contentDescription = tile.label, modifier = Modifier.size(iconSize))
-            } else {
-                Text(
-                    tile.label,
-                    style = textStyle,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(Gap),
-                )
+        if (tile.logo != null) {
+            Box {
+                Image(tile.logo, contentDescription = tile.label, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                if (tile.playing) {
+                    Surface(
+                        modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
+                        shape = RoundedCornerShape(50),
+                        color = RadioColor,
+                        contentColor = Color.Black,
+                    ) {
+                        Text("● IN ONDA", style = Badge, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                when {
+                    tile.playing -> Text("● IN ONDA", style = Badge)
+                    tile.icon != null -> Icon(painterResource(tile.icon), contentDescription = null, tint = tile.iconTint, modifier = Modifier.size(30.dp))
+                    else -> Box {}
+                }
+                Text(tile.label, style = textStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
 }
+
+fun loadLogo(context: Context, path: String): ImageBitmap =
+    context.assets.open(path).use { BitmapFactory.decodeStream(it) }.asImageBitmap()

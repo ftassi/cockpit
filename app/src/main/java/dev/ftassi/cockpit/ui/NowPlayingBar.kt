@@ -1,8 +1,6 @@
 package dev.ftassi.cockpit.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +24,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,56 +33,65 @@ import dev.ftassi.cockpit.R
 import dev.ftassi.cockpit.nowplaying.NowPlayingState
 import dev.ftassi.cockpit.nowplaying.openListenerSettings
 
-private val BarHeight = 88.dp
-private val Shape = RoundedCornerShape(14.dp)
+private const val SPOTIFY = "com.spotify.music"
+private val BarHeight = 80.dp
+private val Label = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.3.sp)
 
+// A compact pill just above the bottom bar: a glance at what plays, and
+// pause within thumb reach.
 @Composable
 fun NowPlayingBar(state: NowPlayingState) {
     val context = LocalContext.current
     when (state) {
         NowPlayingState.NeedsAccess -> TileBox(
-            Tile("Consenti accesso notifiche", tint = Accent) { openListenerSettings(context) },
+            Tile("Consenti accesso notifiche", color = RadioTone) { openListenerSettings(context) },
             Modifier.fillMaxWidth().height(BarHeight),
             MaterialTheme.typography.titleLarge,
         )
         NowPlayingState.Idle -> Surface(
             modifier = Modifier.fillMaxWidth().height(BarHeight),
-            shape = Shape,
-            border = BorderStroke(1.5.dp, Outline),
+            shape = CircleShape,
+            color = SurfaceTone,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 24.dp)) {
                 Text("Niente in riproduzione", style = MaterialTheme.typography.titleLarge, color = Muted)
             }
         }
         is NowPlayingState.Active -> Surface(
             modifier = Modifier.fillMaxWidth().height(BarHeight),
-            shape = Shape,
-            border = BorderStroke(1.5.dp, Accent),
+            shape = CircleShape,
+            color = SurfaceTone,
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(start = if (state.artwork == null) 24.dp else 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
             ) {
-                val cover = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp))
                 if (state.artwork != null) {
-                    Image(state.artwork.asImageBitmap(), contentDescription = null, modifier = cover, contentScale = ContentScale.Crop)
-                } else {
-                    Box(cover.background(Placeholder))
+                    Image(
+                        state.artwork.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp).clip(RoundedCornerShape(20.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     state.subtitle?.let {
                         Text(
-                            it.uppercase(),
-                            style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 1.5.sp),
-                            color = Accent,
+                            "● ${it.uppercase()}",
+                            style = Label,
+                            color = when (state.source) {
+                                context.packageName -> RadioColor
+                                SPOTIFY -> SpotifyColor
+                                else -> Muted
+                            },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
                     Text(
                         state.title,
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -89,7 +99,7 @@ fun NowPlayingBar(state: NowPlayingState) {
                 Surface(
                     onClick = { state.togglePlayPause() },
                     modifier = Modifier.size(64.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = CircleShape,
                     color = Accent,
                     contentColor = Color.Black,
                 ) {

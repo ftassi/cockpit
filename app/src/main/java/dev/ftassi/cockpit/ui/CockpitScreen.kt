@@ -2,15 +2,13 @@ package dev.ftassi.cockpit.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,15 +17,14 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -43,23 +40,22 @@ import dev.ftassi.cockpit.launch.openWaze
 import dev.ftassi.cockpit.launch.startVoiceAssist
 import dev.ftassi.cockpit.nowplaying.NowPlayingState
 
-private val BarHeight = 76.dp
+private val BarHeight = 84.dp
+private const val SpotifyRowSize = 4
+private val Caption = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium)
 
 @Composable
 fun CockpitScreen(
     blocks: List<Block>,
     bar: List<Block>,
     nowPlaying: NowPlayingState,
-    recentRadios: List<Block.Radio>,
-    carModeActive: Boolean,
     onPlay: (Block.Radio) -> Unit,
-    onEnterCarMode: () -> Unit,
-    onExitCarMode: () -> Unit,
 ) {
     val context = LocalContext.current
-    // Screens opened on top of the root grid: only Group and Contacts.
+    // Screens opened on top of the home: only Group and Contacts.
     val stack = remember { mutableStateListOf<Block>() }
     BackHandler(enabled = stack.isNotEmpty()) { stack.removeAt(stack.lastIndex) }
+    val logos = remember { mutableMapOf<String, ImageBitmap>() }
 
     val onBlockClick: (Block) -> Unit = { block ->
         when (block) {
@@ -70,99 +66,104 @@ fun CockpitScreen(
             Block.Voice -> startVoiceAssist(context)
         }
     }
+    // The radio Cockpit itself is playing, matched by the title it was given.
+    val onAir = (nowPlaying as? NowPlayingState.Active)
+        ?.takeIf { it.isPlaying && it.source == context.packageName }
+        ?.title
+    val toTile: (Block) -> Tile = { block ->
+        block.toTile(onAir, { path -> logos.getOrPut(path) { loadLogo(context, path) } }) { onBlockClick(block) }
+    }
 
     Column(
-        modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(Gap),
+        modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(Gap),
     ) {
         val content = Modifier.weight(1f)
         when (val screen = stack.lastOrNull()) {
-            // Recents take only the room they need; the main tiles grow
-            // into whatever is left.
+            // Spotify gets a row of its own under the stations, which take the
+            // rest of the screen.
             null -> {
-                TileGrid(blocks.map { it.toTile(onBlockClick) }, content)
-                if (recentRadios.isNotEmpty()) Recents(recentRadios, onPlay)
+                TileGrid(blocks.filter { it !is Block.Spotify }.map(toTile), content)
+                val spotify = blocks.filterIsInstance<Block.Spotify>()
+                if (spotify.isNotEmpty()) SpotifyRow(spotify, onBlockClick)
             }
-            is Block.Group -> TileGrid(screen.blocks.map { it.toTile(onBlockClick) }, content)
+            is Block.Group -> TileGrid(screen.blocks.map(toTile), content)
             else -> ContactsScreen(content)
         }
 
         NowPlayingBar(nowPlaying)
 
-        Row(
-            modifier = Modifier.height(BarHeight),
-            horizontalArrangement = Arrangement.spacedBy(Gap),
+        Surface(
+            modifier = Modifier.fillMaxWidth().height(BarHeight),
+            shape = RoundedCornerShape(28.dp),
+            color = SurfaceTone,
         ) {
-            val barModifier = Modifier.weight(1f)
-            val barText = MaterialTheme.typography.titleLarge
-            if (stack.isNotEmpty()) {
-                TileBox(Tile("Indietro", R.drawable.ph_arrow_left) { stack.removeAt(stack.lastIndex) }, barModifier, barText, BarIconSize)
-            }
-            for (block in bar) {
-                TileBox(block.toTile(onBlockClick), barModifier, barText, BarIconSize)
-            }
-            if (carModeActive) {
-                TileBox(Tile("Esci dalla modalità auto", R.drawable.ph_power, onClick = onExitCarMode), barModifier, barText, BarIconSize)
-            } else {
-                TileBox(Tile("Modalità auto", R.drawable.ph_car, Accent, onEnterCarMode), barModifier, barText, BarIconSize)
-            }
-        }
-    }
-}
-
-// Three per row, cover on top and title below; radios have no cover yet,
-// so they show the radio icon instead.
-@Composable
-private fun Recents(radios: List<Block.Radio>, onPlay: (Block.Radio) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(Gap)) {
-        Text("RECENTI", style = SectionLabel, color = Muted)
-        for (row in radios.chunked(3)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                for (radio in row) {
-                    Recent(radio.name, "RADIO", R.drawable.ph_radio, RadioColor, Modifier.weight(1f)) { onPlay(radio) }
+            Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val slot = Modifier.weight(1f)
+                if (stack.isNotEmpty()) {
+                    BarButton("Indietro", R.drawable.ph_arrow_left, slot) { stack.removeAt(stack.lastIndex) }
                 }
-                // Keep the columns aligned when the last row is not full.
-                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                for (block in bar) {
+                    val (label, icon) = when (block) {
+                        Block.Contacts -> "Telefono" to R.drawable.ph_phone
+                        Block.Waze -> "Waze" to R.drawable.ph_navigation_arrow
+                        Block.Voice -> "Assistente vocale" to R.drawable.ph_microphone
+                        else -> continue
+                    }
+                    BarButton(label, icon, slot) { onBlockClick(block) }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun Recent(title: String, kind: String, @DrawableRes icon: Int, tint: Color, modifier: Modifier, onClick: () -> Unit) {
-    Column(
-        modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Box(
-            Modifier.fillMaxWidth().aspectRatio(1f)
-                .border(1.5.dp, Outline, RoundedCornerShape(10.dp))
-                .background(Placeholder, RoundedCornerShape(10.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(painterResource(icon), contentDescription = null, tint = tint, modifier = Modifier.size(40.dp))
+private fun BarButton(label: String, @DrawableRes icon: Int, modifier: Modifier, onClick: () -> Unit) {
+    Surface(onClick = onClick, modifier = modifier.fillMaxHeight(), shape = RoundedCornerShape(22.dp), color = SurfaceTone) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(painterResource(icon), contentDescription = label, modifier = Modifier.size(32.dp))
         }
-        Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(kind, style = SectionLabel, color = Muted)
     }
 }
 
-private val SectionLabel = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.5.sp)
-private val BarIconSize = 30.dp
-
-private fun Block.toTile(onClick: (Block) -> Unit): Tile {
-    val click = { onClick(this) }
-    return when (this) {
-        is Block.Group -> when (icon) {
-            Icon.Radio -> Tile(name, R.drawable.ph_radio, RadioColor, click)
-            Icon.Spotify -> Tile(name, R.drawable.ph_spotify_logo, SpotifyColor, click)
-            null -> Tile(name, onClick = click)
+// Square tiles, four to a row whatever their number, so they keep their size;
+// Spotify recents will fill the free slots.
+@Composable
+private fun SpotifyRow(blocks: List<Block.Spotify>, onClick: (Block) -> Unit) {
+    val shown = blocks.take(SpotifyRowSize)
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        for (block in shown) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Surface(
+                    onClick = { onClick(block) },
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                    shape = RoundedCornerShape(18.dp),
+                    color = SpotifyTone,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            painterResource(R.drawable.ph_spotify_logo),
+                            contentDescription = block.name,
+                            tint = SpotifyColor,
+                            modifier = Modifier.size(40.dp),
+                        )
+                    }
+                }
+                Text(block.name, style = Caption, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
-        is Block.Radio -> Tile(name, onClick = click)
-        // Without a uri it opens the app itself, so the logo says it all.
-        is Block.Spotify -> if (uri == null) Tile(name, R.drawable.ph_spotify_logo, SpotifyColor, click) else Tile(name, onClick = click)
-        Block.Contacts -> Tile("Telefono", R.drawable.ph_phone, onClick = click)
-        Block.Waze -> Tile("Waze", R.drawable.ph_navigation_arrow, onClick = click)
-        Block.Voice -> Tile("Assistente vocale", R.drawable.ph_microphone, onClick = click)
+        repeat(SpotifyRowSize - shown.size) { Spacer(Modifier.weight(1f)) }
     }
+}
+
+private fun Block.toTile(onAir: String?, logo: (String) -> ImageBitmap, onClick: () -> Unit): Tile = when (this) {
+    is Block.Group -> when (icon) {
+        Icon.Search -> Tile(name, icon = R.drawable.ph_magnifying_glass, iconTint = RadioColor, onClick = onClick)
+        null -> Tile(name, onClick = onClick)
+    }
+    is Block.Radio -> Tile(name, RadioTone, logo = this.logo?.let(logo), playing = name == onAir, onClick = onClick)
+    is Block.Spotify -> Tile(name, SpotifyTone, R.drawable.ph_spotify_logo, SpotifyColor, onClick = onClick)
+    Block.Contacts -> Tile("Telefono", icon = R.drawable.ph_phone, onClick = onClick)
+    Block.Waze -> Tile("Waze", icon = R.drawable.ph_navigation_arrow, onClick = onClick)
+    Block.Voice -> Tile("Assistente vocale", icon = R.drawable.ph_microphone, onClick = onClick)
 }

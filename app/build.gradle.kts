@@ -61,6 +61,8 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.media3.exoplayer)
+    // Some stations (Radio Freccia) only stream over HLS.
+    implementation(libs.androidx.media3.exoplayer.hls)
     implementation(libs.androidx.media3.session)
     implementation(libs.kotlinx.serialization.json)
 
