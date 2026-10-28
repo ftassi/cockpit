@@ -1,13 +1,18 @@
 package dev.ftassi.cockpit.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,10 +27,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -37,8 +48,9 @@ import dev.ftassi.cockpit.launch.openSpotify
 import dev.ftassi.cockpit.launch.openWaze
 import dev.ftassi.cockpit.launch.startVoiceAssist
 import dev.ftassi.cockpit.nowplaying.NowPlayingState
+import kotlinx.coroutines.delay
 
-private val BarHeight = 84.dp
+private const val DrawerTimeout = 10_000L
 private val SpotifyPillHeight = 88.dp
 
 @Composable
@@ -52,7 +64,18 @@ fun CockpitScreen(
     // Screens opened on top of the home: only Group and Contacts.
     val stack = remember { mutableStateListOf<Block>() }
     BackHandler(enabled = stack.isNotEmpty()) { stack.removeAt(stack.lastIndex) }
-    val logos = remember { mutableMapOf<String, Logo?>() }
+    // A bar group open as a drawer over the screen.
+    var drawer by remember { mutableStateOf<Block.Group?>(null) }
+    BackHandler(enabled = drawer != null) { drawer = null }
+    // Driving off with it open: the home must come back on its own.
+    LaunchedEffect(drawer) {
+        if (drawer != null) {
+            delay(DrawerTimeout)
+            drawer = null
+        }
+    }
+    val logos = remember { mutableMapOf<String, Logo>() }
+    val appIcons = remember { mutableMapOf<String, ImageBitmap?>() }
 
     val onBlockClick: (Block) -> Unit = { block ->
         when (block) {
@@ -69,62 +92,73 @@ fun CockpitScreen(
         ?.takeIf { it.isPlaying && it.source == context.packageName }
         ?.title
     val toTile: (Block) -> Tile = { block ->
-        val logo = when (block) {
-            is Block.Radio -> block.logo?.let { path -> logos.getOrPut(path) { loadLogo(context, path) } }
-            is Block.App -> logos.getOrPut(block.packageName) { loadAppIcon(context, block.packageName) }
-            else -> null
-        }
+        val logo = (block as? Block.Radio)?.logo?.let { path -> logos.getOrPut(path) { loadLogo(context, path) } }
         block.toTile(onAir, logo) { onBlockClick(block) }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(Gap),
-    ) {
-        val content = Modifier.weight(1f)
-        when (val screen = stack.lastOrNull()) {
-            // Spotify gets a pill of its own under the stations, which take the
-            // rest of the screen.
-            null -> {
-                TileGrid(blocks.filter { it !is Block.Spotify }.map(toTile), content)
-                blocks.filterIsInstance<Block.Spotify>().forEach { SpotifyPill(it, onBlockClick) }
-            }
-            is Block.Group -> TileGrid(screen.blocks.map(toTile), content)
-            else -> ContactsScreen(content)
-        }
-
-        NowPlayingBar(nowPlaying)
-
-        Surface(
-            modifier = Modifier.fillMaxWidth().height(BarHeight),
-            shape = RoundedCornerShape(28.dp),
-            color = SurfaceTone,
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp).padding(bottom = BottomBarHeight + Gap),
+            verticalArrangement = Arrangement.spacedBy(Gap),
         ) {
-            Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val slot = Modifier.weight(1f)
-                if (stack.isNotEmpty()) {
-                    BarButton("Indietro", R.drawable.ph_arrow_left, slot) { stack.removeAt(stack.lastIndex) }
+            val content = Modifier.weight(1f)
+            // Going back lives up here, so the bar's buttons never shift.
+            if (stack.isNotEmpty()) BackPill { stack.removeAt(stack.lastIndex) }
+            when (val screen = stack.lastOrNull()) {
+                // Spotify gets a pill of its own under the stations, which take
+                // the rest of the screen.
+                null -> {
+                    TileGrid(blocks.filter { it !is Block.Spotify }.map(toTile), content)
+                    blocks.filterIsInstance<Block.Spotify>().forEach { SpotifyPill(it, onBlockClick) }
                 }
-                for (block in bar) {
-                    val (label, icon) = when (block) {
-                        Block.Contacts -> "Telefono" to R.drawable.ph_phone
-                        Block.Waze -> "Waze" to R.drawable.ph_navigation_arrow
-                        Block.Voice -> "Assistente vocale" to R.drawable.ph_microphone
-                        is Block.Group -> block.name to (block.icon?.drawable() ?: continue)
-                        else -> continue
+                is Block.Group -> TileGrid(screen.blocks.map(toTile), content)
+                else -> ContactsScreen(content)
+            }
+            NowPlayingBar(nowPlaying)
+        }
+
+        AnimatedVisibility(drawer != null, enter = fadeIn(tween(240)), exit = fadeOut(tween(180))) {
+            Box(
+                Modifier.fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { drawer = null },
+            )
+        }
+
+        val buttons = bar.mapNotNull { block ->
+            when (block) {
+                Block.Contacts -> BarItem("Telefono", R.drawable.ph_phone) { onBlockClick(block) }
+                Block.Waze -> BarItem("Waze", R.drawable.ph_navigation_arrow) { onBlockClick(block) }
+                Block.Voice -> BarItem("Assistente vocale", R.drawable.ph_microphone) { onBlockClick(block) }
+                is Block.Group -> {
+                    val open = drawer == block
+                    BarItem(block.name, if (open) R.drawable.ph_caret_down else block.icon?.drawable() ?: return@mapNotNull null, open) {
+                        drawer = if (open) null else block
                     }
-                    BarButton(label, icon, slot) { onBlockClick(block) }
                 }
+                else -> null
             }
         }
+        BottomBar(
+            buttons,
+            drawer,
+            appIcon = { app -> appIcons.getOrPut(app.packageName) { loadAppIcon(context, app.packageName) } },
+            onLaunch = { app ->
+                drawer = null
+                onBlockClick(app)
+            },
+            modifier = Modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(16.dp),
+        )
     }
 }
 
 @Composable
-private fun BarButton(label: String, @DrawableRes icon: Int, modifier: Modifier, onClick: () -> Unit) {
-    Surface(onClick = onClick, modifier = modifier.fillMaxHeight(), shape = RoundedCornerShape(22.dp), color = SurfaceTone) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(painterResource(icon), contentDescription = label, modifier = Modifier.size(32.dp))
+private fun BackPill(onClick: () -> Unit) {
+    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().height(64.dp), shape = CircleShape, color = SurfaceTone) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 24.dp)) {
+            Icon(painterResource(R.drawable.ph_arrow_left), contentDescription = null, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.width(12.dp))
+            Text("Indietro", style = MaterialTheme.typography.titleLarge)
         }
     }
 }
@@ -149,13 +183,13 @@ private fun SpotifyPill(block: Block.Spotify, onClick: (Block) -> Unit) {
 
 private fun Icon.drawable() = when (this) {
     Icon.Search -> R.drawable.ph_magnifying_glass
-    Icon.Car -> R.drawable.ph_car
+    Icon.Apps -> R.drawable.ph_squares_four
 }
 
 private fun Block.toTile(onAir: String?, logo: Logo?, onClick: () -> Unit): Tile = when (this) {
     is Block.Group -> Tile(name, icon = icon?.drawable(), iconTint = RadioColor, onClick = onClick)
     is Block.Radio -> Tile(name, RadioTone, logo = logo, playing = name == onAir, onClick = onClick)
-    is Block.App -> Tile(name, logo = logo, onClick = onClick)
+    is Block.App -> Tile(name, onClick = onClick)
     is Block.Spotify -> Tile(name, SpotifyTone, R.drawable.ph_spotify_logo, SpotifyColor, onClick = onClick)
     Block.Contacts -> Tile("Telefono", icon = R.drawable.ph_phone, onClick = onClick)
     Block.Waze -> Tile("Waze", icon = R.drawable.ph_navigation_arrow, onClick = onClick)

@@ -2,8 +2,6 @@ package dev.ftassi.cockpit.ui
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.BitmapFactory
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
@@ -142,14 +140,9 @@ fun loadLogo(context: Context, path: String): Logo {
     return Logo(bitmap.asImageBitmap(), if (edge.alpha == 1f) edge else SurfaceTone)
 }
 
-// The app's own launcher icon, with a margin so it does not fill the tile
-// edge to edge; null when the app is not installed, so its tile falls back
-// to the name.
-fun loadAppIcon(context: Context, packageName: String): Logo? = try {
-    val icon = context.packageManager.getApplicationIcon(packageName).toBitmap(512, 512)
-    val framed = Bitmap.createBitmap(800, 800, Bitmap.Config.ARGB_8888)
-    Canvas(framed).drawBitmap(icon, 144f, 144f, null)
-    Logo(framed.asImageBitmap(), SurfaceTone)
+// The app's own launcher icon; null when the app is not installed.
+fun loadAppIcon(context: Context, packageName: String): ImageBitmap? = try {
+    context.packageManager.getApplicationIcon(packageName).toBitmap(256, 256).asImageBitmap()
 } catch (_: PackageManager.NameNotFoundException) {
     null
 }

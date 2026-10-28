@@ -51,7 +51,7 @@ sealed interface Block {
 @Serializable
 enum class Icon {
     @SerialName("search") Search,
-    @SerialName("car") Car,
+    @SerialName("apps") Apps,
 }
 
 // The station car mode falls back to before anything has been played.

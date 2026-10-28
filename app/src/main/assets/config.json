@@ -14,9 +14,9 @@
     { "type": "contacts" },
     { "type": "waze" },
     { "type": "voice" },
-    { "type": "group", "name": "Auto", "icon": "car", "blocks": [
-        { "type": "app", "name": "EasyPark", "package": "net.easypark.android" },
-        { "type": "app", "name": "Prezzi Benzina", "package": "org.vernazza.androidfuel" }
+    { "type": "group", "name": "App per l'auto", "icon": "apps", "blocks": [
+        { "type": "app", "name": "Parcheggio", "package": "net.easypark.android" },
+        { "type": "app", "name": "Benzina", "package": "org.vernazza.androidfuel" }
     ]}
   ]
 }
