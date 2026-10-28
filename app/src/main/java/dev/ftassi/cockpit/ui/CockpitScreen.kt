@@ -24,7 +24,14 @@ import dev.ftassi.cockpit.nowplaying.NowPlayingState
 private val BarHeight = 96.dp
 
 @Composable
-fun CockpitScreen(blocks: List<Block>, nowPlaying: NowPlayingState, onPlay: (Block.Radio) -> Unit) {
+fun CockpitScreen(
+    blocks: List<Block>,
+    nowPlaying: NowPlayingState,
+    carModeActive: Boolean,
+    onPlay: (Block.Radio) -> Unit,
+    onEnterCarMode: () -> Unit,
+    onExitCarMode: () -> Unit,
+) {
     val context = LocalContext.current
     // Screens opened on top of the root grid: only Group and Contacts.
     val stack = remember { mutableStateListOf<Block>() }
@@ -58,14 +65,19 @@ fun CockpitScreen(blocks: List<Block>, nowPlaying: NowPlayingState, onPlay: (Blo
         ) {
             if (stack.isNotEmpty()) {
                 TileBox(
-                    Tile("← Indietro", Color(0xFF424242)) { stack.removeAt(stack.lastIndex) },
+                    Tile("Indietro", Color(0xFF424242)) { stack.removeAt(stack.lastIndex) },
                     Modifier.weight(1f),
                 )
             }
             TileBox(
-                Tile("🎤 Voce", Color(0xFFC62828)) { startVoiceAssist(context) },
+                Tile("Voce", Color(0xFFC62828)) { startVoiceAssist(context) },
                 Modifier.weight(1f),
             )
+            if (carModeActive) {
+                TileBox(Tile("Esci", Color(0xFF6D4C41), onExitCarMode), Modifier.weight(1f))
+            } else {
+                TileBox(Tile("Auto", Color(0xFF00695C), onEnterCarMode), Modifier.weight(1f))
+            }
         }
     }
 }

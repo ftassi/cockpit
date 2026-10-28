@@ -47,4 +47,18 @@ class ConfigTest {
 
         assertTrue(config.blocks.isNotEmpty())
     }
+
+    @Test
+    fun `finds the first radio, depth first`() {
+        val skyline = Block.Radio("Skyline", "https://stream.example/skyline.mp3")
+        val config = Config(
+            blocks = listOf(
+                Block.Waze,
+                Block.Group("Radio", listOf(Block.Spotify(), skyline)),
+                Block.Radio("Later", "https://stream.example/later.mp3"),
+            ),
+        )
+
+        assertEquals(skyline, config.firstRadio())
+    }
 }

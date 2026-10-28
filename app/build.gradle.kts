@@ -16,8 +16,20 @@ android {
         versionName = "0.1"
     }
 
+    buildTypes {
+        // Media volume set by car mode: in the car the AUX input needs it
+        // maxed out, at the desk that would be deafening.
+        debug {
+            buildConfigField("float", "CAR_VOLUME", "0.25f")
+        }
+        release {
+            buildConfigField("float", "CAR_VOLUME", "1.0f")
+        }
+    }
+
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     testOptions {

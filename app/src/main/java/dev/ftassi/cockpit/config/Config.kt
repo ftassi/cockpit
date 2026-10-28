@@ -35,6 +35,17 @@ sealed interface Block {
     data object Waze : Block
 }
 
+// The station car mode falls back to before anything has been played.
+fun Config.firstRadio(): Block.Radio? = blocks.firstRadio()
+
+private fun List<Block>.firstRadio(): Block.Radio? = firstNotNullOfOrNull {
+    when (it) {
+        is Block.Radio -> it
+        is Block.Group -> it.blocks.firstRadio()
+        else -> null
+    }
+}
+
 fun parseConfig(json: String): Config = Json.decodeFromString(json)
 
 fun loadConfig(context: Context): Config =
