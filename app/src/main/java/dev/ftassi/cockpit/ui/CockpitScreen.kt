@@ -44,7 +44,6 @@ import dev.ftassi.cockpit.launch.startVoiceAssist
 import dev.ftassi.cockpit.nowplaying.NowPlayingState
 
 private val BarHeight = 76.dp
-private val HomeTilesHeight = 160.dp
 
 @Composable
 fun CockpitScreen(
@@ -78,11 +77,11 @@ fun CockpitScreen(
     ) {
         val content = Modifier.weight(1f)
         when (val screen = stack.lastOrNull()) {
-            null -> if (recentRadios.isEmpty()) {
+            // Recents take only the room they need; the main tiles grow
+            // into whatever is left.
+            null -> {
                 TileGrid(blocks.map { it.toTile(onBlockClick) }, content)
-            } else {
-                TileGrid(blocks.map { it.toTile(onBlockClick) }, Modifier.height(HomeTilesHeight))
-                Recents(recentRadios, onPlay, content)
+                if (recentRadios.isNotEmpty()) Recents(recentRadios, onPlay)
             }
             is Block.Group -> TileGrid(screen.blocks.map { it.toTile(onBlockClick) }, content)
             else -> ContactsScreen(content)
@@ -114,8 +113,8 @@ fun CockpitScreen(
 // Three per row, cover on top and title below; radios have no cover yet,
 // so they show the radio icon instead.
 @Composable
-private fun Recents(radios: List<Block.Radio>, onPlay: (Block.Radio) -> Unit, modifier: Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(Gap)) {
+private fun Recents(radios: List<Block.Radio>, onPlay: (Block.Radio) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(Gap)) {
         Text("RECENTI", style = SectionLabel, color = Muted)
         for (row in radios.chunked(3)) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
