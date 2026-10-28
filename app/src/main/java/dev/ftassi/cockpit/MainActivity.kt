@@ -3,6 +3,11 @@ package dev.ftassi.cockpit
 import android.content.ComponentName
 import android.content.Intent
 import android.hardware.usb.UsbManager
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.os.Handler
+import android.os.Looper
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
@@ -21,6 +26,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import dev.ftassi.cockpit.carmode.CarMode
+import dev.ftassi.cockpit.carmode.isUsbAudio
 import dev.ftassi.cockpit.carmode.openDndAccessSettings
 import dev.ftassi.cockpit.config.Block
 import dev.ftassi.cockpit.config.Config
@@ -42,6 +48,19 @@ class MainActivity : ComponentActivity() {
     // Set by a car mode link, handled in onResume once the controller exists.
     private var carModeRequested = false
 
+    // Registered for the activity's whole life, so it also works while Waze or
+    // Spotify is in front.
+    private val usbAudio = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(added: Array<AudioDeviceInfo>) {
+            if (added.any { it.isUsbAudio() }) carMode.maxOutUsbVolume()
+        }
+
+        // The splitter unplugged (paying a toll, leaving the car): end the drive.
+        override fun onAudioDevicesRemoved(removed: Array<AudioDeviceInfo>) {
+            if (carMode.isActive && removed.any { it.isUsbAudio() }) exitCarMode()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         config = loadConfig(this)
@@ -49,6 +68,8 @@ class MainActivity : ComponentActivity() {
         carMode = CarMode(this)
         showCarMode(carMode.isActive)
         if (savedInstanceState == null) carModeRequested = intent.isCarModeLink()
+        getSystemService(AudioManager::class.java)
+            .registerAudioDeviceCallback(usbAudio, Handler(Looper.getMainLooper()))
         setContent {
             val nowPlayingState by nowPlaying.state.collectAsState()
             CockpitTheme {
@@ -88,6 +109,11 @@ class MainActivity : ComponentActivity() {
             carModeRequested = false
             enterCarMode()
         }
+    }
+
+    override fun onDestroy() {
+        getSystemService(AudioManager::class.java).unregisterAudioDeviceCallback(usbAudio)
+        super.onDestroy()
     }
 
     override fun onStop() {
