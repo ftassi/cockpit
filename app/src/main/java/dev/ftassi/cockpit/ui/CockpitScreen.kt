@@ -1,6 +1,5 @@
 package dev.ftassi.cockpit.ui
 
-import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,7 +23,7 @@ import dev.ftassi.cockpit.launch.startVoiceAssist
 private val BarHeight = 96.dp
 
 @Composable
-fun CockpitScreen(blocks: List<Block>) {
+fun CockpitScreen(blocks: List<Block>, onPlay: (Block.Radio) -> Unit) {
     val context = LocalContext.current
     // Screens opened on top of the root grid: only Group and Contacts.
     val stack = remember { mutableStateListOf<Block>() }
@@ -33,7 +32,9 @@ fun CockpitScreen(blocks: List<Block>) {
     val onBlockClick: (Block) -> Unit = { block ->
         when (block) {
             is Block.Group, Block.Contacts -> stack.add(block)
-            else -> launch(context, block)
+            is Block.Radio -> onPlay(block)
+            is Block.Spotify -> openSpotify(context, block.uri)
+            Block.Waze -> openWaze(context)
         }
     }
 
@@ -63,15 +64,6 @@ fun CockpitScreen(blocks: List<Block>) {
                 Modifier.weight(1f),
             )
         }
-    }
-}
-
-private fun launch(context: Context, block: Block) {
-    when (block) {
-        is Block.Spotify -> openSpotify(context, block.uri)
-        Block.Waze -> openWaze(context)
-        is Block.Radio -> Unit // Playback arrives with RadioService.
-        is Block.Group, Block.Contacts -> error("$block is a screen, not an action")
     }
 }
 
