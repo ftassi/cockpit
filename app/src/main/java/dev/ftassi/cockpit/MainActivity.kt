@@ -36,6 +36,7 @@ import dev.ftassi.cockpit.nowplaying.NowPlayingTracker
 import dev.ftassi.cockpit.nowplaying.currentPlayerPackage
 import dev.ftassi.cockpit.nowplaying.resumePlayer
 import dev.ftassi.cockpit.playback.RadioService
+import dev.ftassi.cockpit.recents.RecentRadios
 import dev.ftassi.cockpit.ui.CockpitScreen
 import dev.ftassi.cockpit.ui.CockpitTheme
 
@@ -46,7 +47,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var config: Config
     private lateinit var nowPlaying: NowPlayingTracker
     private lateinit var carMode: CarMode
+    private lateinit var recents: RecentRadios
     private var carModeActive by mutableStateOf(false)
+    private var recentRadios by mutableStateOf(emptyList<Block.Radio>())
     // Set by a car mode link, handled in onResume once the controller exists.
     private var carModeRequested = false
 
@@ -68,6 +71,8 @@ class MainActivity : ComponentActivity() {
         config = loadConfig(this)
         nowPlaying = NowPlayingTracker(this)
         carMode = CarMode(this)
+        recents = RecentRadios(this)
+        recentRadios = recents.load()
         showCarMode(carMode.isActive)
         if (savedInstanceState == null) carModeRequested = intent.isCarModeLink()
         getSystemService(AudioManager::class.java)
@@ -79,6 +84,7 @@ class MainActivity : ComponentActivity() {
                     CockpitScreen(
                         config.blocks,
                         nowPlayingState,
+                        recentRadios,
                         carModeActive = carModeActive,
                         onPlay = ::play,
                         onEnterCarMode = ::enterCarMode,
@@ -142,7 +148,7 @@ class MainActivity : ComponentActivity() {
     private fun resumeListening() {
         val player = carMode.lastPlayer
         if (player != null && player != packageName && resumePlayer(this, player)) return
-        (carMode.lastStation ?: config.firstRadio())?.let(::play)
+        (recentRadios.firstOrNull() ?: config.firstRadio())?.let(::play)
     }
 
     private fun exitCarMode() {
@@ -165,7 +171,7 @@ class MainActivity : ComponentActivity() {
 
     private fun play(radio: Block.Radio) {
         val future = controllerFuture ?: return
-        carMode.lastStation = radio
+        recentRadios = recents.add(radio)
         future.addListener({
             val controller = future.get()
             controller.setMediaItem(

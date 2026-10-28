@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
@@ -22,11 +23,13 @@ import dev.ftassi.cockpit.launch.startVoiceAssist
 import dev.ftassi.cockpit.nowplaying.NowPlayingState
 
 private val BarHeight = 96.dp
+private val RecentHeight = 112.dp
 
 @Composable
 fun CockpitScreen(
     blocks: List<Block>,
     nowPlaying: NowPlayingState,
+    recentRadios: List<Block.Radio>,
     carModeActive: Boolean,
     onPlay: (Block.Radio) -> Unit,
     onEnterCarMode: () -> Unit,
@@ -52,7 +55,10 @@ fun CockpitScreen(
     ) {
         val content = Modifier.weight(1f)
         when (val screen = stack.lastOrNull()) {
-            null -> TileGrid(blocks.map { it.toTile(onBlockClick) }, content)
+            null -> {
+                if (recentRadios.isNotEmpty()) Recents(recentRadios.map { it.toTile(onBlockClick) })
+                TileGrid(blocks.map { it.toTile(onBlockClick) }, content)
+            }
             is Block.Group -> TileGrid(screen.blocks.map { it.toTile(onBlockClick) }, content)
             else -> ContactsScreen(content)
         }
@@ -77,6 +83,19 @@ fun CockpitScreen(
                 TileBox(Tile("Esci", Color(0xFF6D4C41), onExitCarMode), Modifier.weight(1f))
             } else {
                 TileBox(Tile("Auto", Color(0xFF00695C), onEnterCarMode), Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+// Smaller than the main blocks, up to three per row; each row shares its
+// width among however many recents it holds, so any count fills the screen.
+@Composable
+private fun Recents(tiles: List<Tile>) {
+    for (row in tiles.chunked(3)) {
+        Row(modifier = Modifier.height(RecentHeight), horizontalArrangement = Arrangement.spacedBy(Gap)) {
+            for (tile in row) {
+                TileBox(tile, Modifier.weight(1f), MaterialTheme.typography.titleLarge)
             }
         }
     }

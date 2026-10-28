@@ -1,7 +1,8 @@
 {
   "blocks": [
     { "type": "group", "name": "Radio", "blocks": [
-        { "type": "radio", "name": "Radio Skyline", "url": "https://rblive.it:8010/radio.mp3" }
+        { "type": "radio", "name": "Radio Skyline", "url": "https://rblive.it:8010/radio.mp3" },
+        { "type": "radio", "name": "Skyline Jazz", "url": "https://rblive.it:8030/radio.mp3" }
     ]},
     { "type": "group", "name": "Musica", "blocks": [
         { "type": "spotify" }

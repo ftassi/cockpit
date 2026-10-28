@@ -15,11 +15,8 @@ import android.view.KeyEvent
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import dev.ftassi.cockpit.MainActivity
-import dev.ftassi.cockpit.config.Block
-import kotlinx.serialization.json.Json
 
 private const val ACTIVE = "active"
-private const val LAST_STATION = "last_station"
 private const val LAST_PLAYER = "last_player"
 
 // Driving setup: a dedicated Do Not Disturb mode and the car's DAC at full
@@ -34,10 +31,6 @@ class CarMode(private val context: Context) {
     val isActive: Boolean get() = prefs.getBoolean(ACTIVE, false)
 
     val hasDndAccess: Boolean get() = notifications.isNotificationPolicyAccessGranted
-
-    var lastStation: Block.Radio?
-        get() = prefs.getString(LAST_STATION, null)?.let { Json.decodeFromString(it) }
-        set(value) = prefs.edit { putString(LAST_STATION, Json.encodeToString(value)) }
 
     // Package of the app that was playing when car mode last ended.
     var lastPlayer: String?
