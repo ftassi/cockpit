@@ -12,6 +12,7 @@ import androidx.media3.session.MediaSessionService
 // lock screen controls, and runs the service in the foreground while playing.
 class RadioService : MediaSessionService() {
     private var session: MediaSession? = null
+    private var reconnector: Reconnector? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -40,12 +41,15 @@ class RadioService : MediaSessionService() {
                 if (!playWhenReady) player.stop()
             }
         })
+        reconnector = Reconnector(this, player)
         session = MediaSession.Builder(this, player).build()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = session
 
     override fun onDestroy() {
+        reconnector?.release()
+        reconnector = null
         session?.run {
             player.release()
             release()

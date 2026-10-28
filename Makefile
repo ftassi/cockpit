@@ -54,8 +54,8 @@ install: ## Build and install the debug APK on the connected phone
 run: install ## Install and launch the app
 	$(ADB) shell am start -n $(APP_ID)/.MainActivity
 
-logs: ## Show logcat for the running app
-	$(ADB) logcat --pid=$$($(ADB) shell pidof -s $(APP_ID))
+logs: ## Show the app's own log lines (tag Cockpit) plus crashes
+	$(ADB) logcat -s Cockpit:V AndroidRuntime:E
 
 awake: ## Keep the phone screen on while plugged into USB, wake it and dismiss the lock screen
 	$(ADB) shell svc power stayon usb
