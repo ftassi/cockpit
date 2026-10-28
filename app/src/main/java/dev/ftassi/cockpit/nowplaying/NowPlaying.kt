@@ -91,6 +91,27 @@ class NowPlayingTracker(private val context: Context) {
     }
 }
 
+// The app whose session the bar would show right now: what is playing, or what
+// was playing last. Requires the notification listener permission.
+fun currentPlayerPackage(context: Context): String? =
+    pickActive(activeSessions(context).filter { it.title() != null }) { it.isPlaying() }?.packageName
+
+// Resumes the given app's session, if it still has one.
+fun resumePlayer(context: Context, packageName: String): Boolean {
+    val session = activeSessions(context).firstOrNull { it.packageName == packageName } ?: return false
+    session.transportControls.play()
+    return true
+}
+
+// Empty without the notification listener permission, which reading other
+// apps' sessions requires.
+private fun activeSessions(context: Context): List<MediaController> {
+    val listener = ComponentName(context, SessionListener::class.java)
+    val granted = context.getSystemService(NotificationManager::class.java).isNotificationListenerAccessGranted(listener)
+    if (!granted) return emptyList()
+    return context.getSystemService(MediaSessionManager::class.java).getActiveSessions(listener)
+}
+
 fun openListenerSettings(context: Context) {
     val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
         .putExtra(

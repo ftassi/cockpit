@@ -33,6 +33,8 @@ import dev.ftassi.cockpit.config.Config
 import dev.ftassi.cockpit.config.firstRadio
 import dev.ftassi.cockpit.config.loadConfig
 import dev.ftassi.cockpit.nowplaying.NowPlayingTracker
+import dev.ftassi.cockpit.nowplaying.currentPlayerPackage
+import dev.ftassi.cockpit.nowplaying.resumePlayer
 import dev.ftassi.cockpit.playback.RadioService
 import dev.ftassi.cockpit.ui.CockpitScreen
 import dev.ftassi.cockpit.ui.CockpitTheme
@@ -132,10 +134,21 @@ class MainActivity : ComponentActivity() {
         if (carMode.isActive) return
         carMode.enter()
         showCarMode(true)
+        resumeListening()
+    }
+
+    // Pick up whatever was on when the last drive ended: a podcast in Spotify
+    // resumes there, otherwise the radio comes back.
+    private fun resumeListening() {
+        val player = carMode.lastPlayer
+        if (player != null && player != packageName && resumePlayer(this, player)) return
         (carMode.lastStation ?: config.firstRadio())?.let(::play)
     }
 
     private fun exitCarMode() {
+        // Before exit() pauses it; unplugging may have paused it already, in
+        // which case it is still the most recent session.
+        carMode.lastPlayer = currentPlayerPackage(this)
         carMode.exit()
         showCarMode(false)
         finish()

@@ -20,6 +20,7 @@ import kotlinx.serialization.json.Json
 
 private const val ACTIVE = "active"
 private const val LAST_STATION = "last_station"
+private const val LAST_PLAYER = "last_player"
 
 // Driving setup: a dedicated Do Not Disturb mode and the car's DAC at full
 // volume. State lives in SharedPreferences so it survives the app being killed
@@ -37,6 +38,11 @@ class CarMode(private val context: Context) {
     var lastStation: Block.Radio?
         get() = prefs.getString(LAST_STATION, null)?.let { Json.decodeFromString(it) }
         set(value) = prefs.edit { putString(LAST_STATION, Json.encodeToString(value)) }
+
+    // Package of the app that was playing when car mode last ended.
+    var lastPlayer: String?
+        get() = prefs.getString(LAST_PLAYER, null)
+        set(value) = prefs.edit { putString(LAST_PLAYER, value) }
 
     // Requires hasDndAccess.
     fun enter() {
