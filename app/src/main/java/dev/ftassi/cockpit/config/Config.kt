@@ -18,10 +18,16 @@ sealed interface Block {
     @SerialName("group")
     data class Group(val name: String, val blocks: List<Block>, val icon: Icon? = null) : Block
 
-    // logo: an image under assets/, shown instead of the name.
+    // logo: an image under assets/, shown instead of the name. favicon: the
+    // address of its image, for stations picked from the directory.
     @Serializable
     @SerialName("radio")
-    data class Radio(val name: String, val url: String, val logo: String? = null) : Block
+    data class Radio(val name: String, val url: String, val logo: String? = null, val favicon: String? = null) : Block
+
+    // Opens the chart of Italian stations with a search over all of them.
+    @Serializable
+    @SerialName("directory")
+    data class Directory(val name: String, val icon: Icon? = null) : Block
 
     // A null uri opens the Spotify app on its home screen.
     @Serializable

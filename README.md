@@ -35,7 +35,10 @@ your own to track your changes.
   any media app), with its artwork and play/pause.
 - **Last Spotify playlists**: the three last played on your account, from any
   device, read every hour; your library fills any free slot. One tap to start.
-  Share a playlist from Spotify to Cockpit to pin it; long press to toggle.
+  Share a playlist from Spotify to Cockpit to pin it.
+- **Your layout**: hold a tile for 2 seconds to reorganize the home: drag radios
+  and playlists within their own area, tap a playlist to pin or unpin it, then
+  "Fatto".
   Without Spotify access it is a plain Spotify button.
 - **Bottom bar**: starred contacts with direct call and a dialer, Waze, the
   voice assistant, and a drawer of apps used in the car (parking, fuel prices).
@@ -88,6 +91,7 @@ Each entry has a `type`:
 |---|---|---|
 | `radio` | `name`, `url`, `logo` (optional) | Plays a stream. With a logo the tile shows only the logo. |
 | `group` | `name`, `blocks`, `icon` (optional) | On the home, opens a screen with its blocks. In the bar, opens them as a drawer of apps. |
+| `directory` | `name`, `icon` (optional) | Opens the top 100 Italian stations by radio-browser.info clicks, with search over its whole catalogue. The last 4 played from it stay at the bottom. |
 | `spotify` | `name` (optional), `uri` (optional) | Opens Spotify, or a playlist/album with a `spotify:` URI. Shown as a pill under the stations. |
 | `app` | `name`, `package` | Opens any installed app. Its own icon is used. |
 | `contacts` | — | Starred contacts and dialer. |
@@ -124,7 +128,7 @@ to be hit without looking.
 
 - **Stream URLs and logos**: [radio-browser.info](https://www.radio-browser.info)
   lists most stations with their stream (`url_resolved`) and often a logo
-  (`favicon`). MP3, AAC and HLS (`.m3u8`) streams all work; use `https`.
+  (`favicon`). MP3, AAC and HLS (`.m3u8`) streams all work.
 - **Logos** go in `app/src/main/assets/logos/` and are referenced as
   `logos/<file>`. Square images of 300 px or more look best. A logo with a solid
   background fills the tile; a transparent one sits on a dark tile.

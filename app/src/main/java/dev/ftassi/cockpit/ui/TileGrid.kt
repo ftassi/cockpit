@@ -25,6 +25,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import dev.ftassi.cockpit.layout.gridSlots
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -82,6 +84,22 @@ fun TileGrid(tiles: List<Tile>, modifier: Modifier = Modifier) {
                     }
                 }
             }
+        }
+    }
+}
+
+// The home's grid while reorganizing: the same rows, same place, tiles that slide.
+@Composable
+fun ReorderableTileGrid(items: List<Pair<String, Tile>>, onDrop: (List<String>) -> Unit, modifier: Modifier = Modifier) {
+    val rows = (items.size + 1) / 2
+    BoxWithConstraints(modifier) {
+        val rowHeight = ((maxHeight - Gap * (rows - 1)) / rows).coerceIn(MinRowHeight, MaxRowHeight)
+        val slots = with(LocalDensity.current) {
+            gridSlots(items.size, 2, maxWidth.toPx(), rowHeight.toPx(), Gap.toPx(), fullLastRow = true)
+        }
+        val tiles = items.toMap()
+        ReorderableArea(items.map { it.first }, slots, onDrop, Modifier.fillMaxSize()) { key ->
+            tiles[key]?.let { TileBox(it, Modifier.fillMaxSize()) }
         }
     }
 }

@@ -130,7 +130,7 @@ class MainActivity : ComponentActivity() {
                         spotify = spotifyState,
                         onSpotifyLogin = spotify::startLogin,
                         onPlaylist = ::playPlaylist,
-                        onPlaylistLongPress = ::togglePin,
+                        onPlaylistPin = ::togglePin,
                     )
                 }
             }
@@ -207,8 +207,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun togglePin(playlist: SpotifyPlaylist) {
-        // A bump in the road must not change the row.
-        if (carMode.isActive) return
         if (playlist.pinned) spotify.unpin(playlist.uri) else spotify.pin(playlist.uri)
         val message = if (playlist.pinned) "Playlist non più pinnata" else "Playlist pinnata"
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()

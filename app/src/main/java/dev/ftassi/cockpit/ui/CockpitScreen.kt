@@ -13,6 +13,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -44,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +57,9 @@ import dev.ftassi.cockpit.config.Block
 import dev.ftassi.cockpit.config.Icon
 import dev.ftassi.cockpit.launch.openApp
 import dev.ftassi.cockpit.launch.startVoiceAssist
+import dev.ftassi.cockpit.layout.HomeLayout
+import dev.ftassi.cockpit.layout.applyOrder
+import dev.ftassi.cockpit.layout.gridSlots
 import dev.ftassi.cockpit.nowplaying.NowPlayingState
 import dev.ftassi.cockpit.spotify.SpotifyPlaylist
 import dev.ftassi.cockpit.spotify.SpotifyState
@@ -63,7 +68,9 @@ import kotlinx.coroutines.delay
 private const val DrawerTimeout = 10_000L
 private val SpotifyPillHeight = 88.dp
 private const val SpotifyRowSize = 4
-private val Caption = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium)
+private val SpotifyRowGap = 10.dp
+private val SquareCaptionHeight = 26.dp
+internal val Caption = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium)
 
 @Composable
 fun CockpitScreen(
@@ -77,7 +84,7 @@ fun CockpitScreen(
     spotify: SpotifyState,
     onSpotifyLogin: () -> Unit,
     onPlaylist: (String) -> Unit,
-    onPlaylistLongPress: (SpotifyPlaylist) -> Unit,
+    onPlaylistPin: (SpotifyPlaylist) -> Unit,
 ) {
     val context = LocalContext.current
     // Screens opened on top of the home: only Group and Contacts.
@@ -93,12 +100,17 @@ fun CockpitScreen(
             drawer = null
         }
     }
+    val layout = remember { HomeLayout(context) }
+    var reorganizing by remember { mutableStateOf(false) }
+    BackHandler(enabled = reorganizing) { reorganizing = false }
+    var radioOrder by remember { mutableStateOf(layout.radios()) }
+    var playlistOrder by remember { mutableStateOf(layout.playlists()) }
     val logos = remember { mutableMapOf<String, Logo>() }
     val appIcons = remember { mutableMapOf<String, ImageBitmap?>() }
 
     val onBlockClick: (Block) -> Unit = { block ->
         when (block) {
-            is Block.Group, Block.Contacts -> stack.add(block)
+            is Block.Group, is Block.Directory, Block.Contacts -> stack.add(block)
             is Block.Radio -> onPlay(block)
             is Block.Spotify -> onSpotify(block.uri)
             is Block.App -> openApp(context, block.packageName, block.name)
@@ -130,10 +142,50 @@ fun CockpitScreen(
                 // Spotify gets a pill of its own under the stations, which take
                 // the rest of the screen.
                 null -> {
-                    TileGrid(blocks.filter { it !is Block.Spotify }.map(toTile), content)
-                    blocks.filterIsInstance<Block.Spotify>().forEach { SpotifyArea(it, spotify, onBlockClick, onSpotifyLogin, onPlaylist, onPlaylistLongPress) }
+                    val tiles = applyOrder(blocks.filter { it !is Block.Spotify }, radioOrder) { it.layoutKey() }
+                    val playlists = (spotify as? SpotifyState.Connected)?.playlists.orEmpty()
+                        .let { shown -> applyOrder(shown, playlistOrder) { it.uri } }
+                    Column(
+                        modifier = content.holdToReorganize {
+                            context.vibrate(Buzz.Enter)
+                            drawer = null
+                            reorganizing = true
+                        },
+                        verticalArrangement = Arrangement.spacedBy(Gap),
+                    ) {
+                        val grid = Modifier.weight(1f)
+                        if (reorganizing) {
+                            ReorderableTileGrid(
+                                tiles.map { it.layoutKey() to toTile(it).copy(onClick = {}) },
+                                onDrop = { order ->
+                                    radioOrder = order
+                                    layout.saveRadios(order)
+                                },
+                                modifier = grid,
+                            )
+                        } else {
+                            TileGrid(tiles.map(toTile), grid)
+                        }
+                        blocks.filterIsInstance<Block.Spotify>().forEach { block ->
+                            SpotifyArea(
+                                block,
+                                spotify,
+                                playlists,
+                                reorganizing,
+                                onBlockClick,
+                                onSpotifyLogin,
+                                onPlaylist,
+                                onPlaylistPin,
+                                onDropPlaylists = { order ->
+                                    playlistOrder = order
+                                    layout.savePlaylists(order)
+                                },
+                            )
+                        }
+                    }
                 }
                 is Block.Group -> TileGrid(screen.blocks.map(toTile), content)
+                is Block.Directory -> DirectoryScreen(onAir, onPlay, content)
                 else -> ContactsScreen(content)
             }
         }
@@ -160,7 +212,12 @@ fun CockpitScreen(
                 else -> null
             }
         }
-        BottomBar(
+        if (reorganizing) {
+            DoneBar(
+                onClick = { reorganizing = false },
+                modifier = Modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(16.dp),
+            )
+        } else BottomBar(
             buttons,
             drawer,
             appIcon = { app -> appIcons.getOrPut(app.packageName) { loadAppIcon(context, app.packageName) } },
@@ -190,14 +247,17 @@ private fun BackPill(onClick: () -> Unit) {
 private fun SpotifyArea(
     block: Block.Spotify,
     state: SpotifyState,
+    playlists: List<SpotifyPlaylist>,
+    reorganizing: Boolean,
     onClick: (Block) -> Unit,
     onLogin: () -> Unit,
     onPlaylist: (String) -> Unit,
-    onPlaylistLongPress: (SpotifyPlaylist) -> Unit,
+    onPin: (SpotifyPlaylist) -> Unit,
+    onDropPlaylists: (List<String>) -> Unit,
 ) {
     when {
-        state is SpotifyState.Connected && state.playlists.isNotEmpty() ->
-            SpotifyRow(block, state.playlists, onClick, onPlaylist, onPlaylistLongPress)
+        playlists.isNotEmpty() && reorganizing -> ReorderableSpotifyRow(block, playlists, onPin, onDropPlaylists)
+        playlists.isNotEmpty() -> SpotifyRow(block, playlists, onClick, onPlaylist)
         state is SpotifyState.TokenExpired -> Row(horizontalArrangement = Arrangement.spacedBy(Gap)) {
             SpotifyPill(block, onClick, Modifier.weight(1f))
             Surface(
@@ -223,48 +283,82 @@ private fun SpotifyArea(
 }
 
 // Four equal squares, whatever the number of playlists, so they keep their size.
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SpotifyRow(
-    block: Block.Spotify,
-    playlists: List<SpotifyPlaylist>,
-    onClick: (Block) -> Unit,
-    onPlaylist: (String) -> Unit,
-    onLongPress: (SpotifyPlaylist) -> Unit,
-) {
+private fun SpotifyRow(block: Block.Spotify, playlists: List<SpotifyPlaylist>, onClick: (Block) -> Unit, onPlaylist: (String) -> Unit) {
     val shown = playlists.take(SpotifyRowSize - 1)
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Surface(
-                onClick = { onClick(block) },
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-                shape = RoundedCornerShape(18.dp),
-                color = SpotifyTone,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(painterResource(R.drawable.ph_spotify_logo), contentDescription = block.name, tint = SpotifyColor, modifier = Modifier.size(40.dp))
-                }
-            }
-            Text(block.name, style = Caption, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+    Row(horizontalArrangement = Arrangement.spacedBy(SpotifyRowGap)) {
+        SpotifyLogoSquare(block, Modifier.weight(1f)) { onClick(block) }
         for (playlist in shown) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                        .clip(RoundedCornerShape(18.dp))
-                        .combinedClickable(onLongClick = { onLongPress(playlist) }) { onPlaylist(playlist.uri) },
-                    shape = RoundedCornerShape(18.dp),
-                    color = SpotifyTone,
-                ) {
-                    playlist.cover?.let {
-                        Image(it, contentDescription = playlist.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                    }
-                }
-                Text(playlist.name, style = Caption, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
+            PlaylistSquare(playlist, Muted, Modifier.weight(1f)) { onPlaylist(playlist.uri) }
         }
         repeat(SpotifyRowSize - 1 - shown.size) { Spacer(Modifier.weight(1f)) }
     }
+}
+
+// The same four places, with the logo staying put. A tap pins or unpins.
+@Composable
+private fun ReorderableSpotifyRow(block: Block.Spotify, playlists: List<SpotifyPlaylist>, onPin: (SpotifyPlaylist) -> Unit, onDrop: (List<String>) -> Unit) {
+    val shown = playlists.take(SpotifyRowSize - 1).associateBy { it.uri }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val square = (maxWidth - SpotifyRowGap * (SpotifyRowSize - 1)) / SpotifyRowSize
+        val height = square + SquareCaptionHeight
+        val slots = with(LocalDensity.current) {
+            gridSlots(SpotifyRowSize, SpotifyRowSize, maxWidth.toPx(), height.toPx(), SpotifyRowGap.toPx(), fullLastRow = false)
+        }.take(shown.size + 1)
+        Box(Modifier.fillMaxWidth().height(height)) {
+            SpotifyLogoSquare(block, Modifier.width(square)) {}
+            ReorderableArea(shown.keys.toList(), slots, onDrop, Modifier.fillMaxSize(), fixedSlots = 1) { uri ->
+                shown[uri]?.let { playlist ->
+                    PlaylistSquare(playlist, if (playlist.pinned) Accent else Muted, Modifier.fillMaxSize()) { onPin(playlist) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpotifyLogoSquare(block: Block.Spotify, modifier: Modifier, onClick: () -> Unit) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(1f), shape = RoundedCornerShape(18.dp), color = SpotifyTone) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(painterResource(R.drawable.ph_spotify_logo), contentDescription = block.name, tint = SpotifyColor, modifier = Modifier.size(40.dp))
+            }
+        }
+        Text(block.name, style = Caption, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun PlaylistSquare(playlist: SpotifyPlaylist, captionColor: Color, modifier: Modifier, onClick: () -> Unit) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(1f), shape = RoundedCornerShape(18.dp), color = SpotifyTone) {
+            playlist.cover?.let {
+                Image(it, contentDescription = playlist.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            }
+        }
+        Text(playlist.name, style = Caption, color = captionColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+// Replaces the bar while reorganizing, at the same height.
+@Composable
+private fun DoneBar(onClick: () -> Unit, modifier: Modifier) {
+    Surface(onClick = onClick, modifier = modifier.fillMaxWidth().height(BottomBarHeight), shape = RoundedCornerShape(32.dp), color = Accent, contentColor = Color.Black) {
+        Box(contentAlignment = Alignment.Center) {
+            Text("Fatto", style = MaterialTheme.typography.headlineSmall)
+        }
+    }
+}
+
+private fun Block.layoutKey(): String = when (this) {
+    is Block.Radio -> name
+    is Block.Directory -> name
+    is Block.Group -> name
+    is Block.App -> name
+    is Block.Spotify -> name
+    Block.Contacts -> "contacts"
+    Block.Waze -> "waze"
+    Block.Voice -> "voice"
 }
 
 // Shown on its own when there are no recents to offer.
@@ -293,6 +387,7 @@ private fun Icon.drawable() = when (this) {
 
 private fun Block.toTile(onAir: String?, logo: Logo?, onClick: () -> Unit): Tile = when (this) {
     is Block.Group -> Tile(name, icon = icon?.drawable(), iconTint = RadioColor, onClick = onClick)
+    is Block.Directory -> Tile(name, icon = icon?.drawable(), iconTint = RadioColor, onClick = onClick)
     is Block.Radio -> Tile(name, RadioTone, logo = logo, playing = name == onAir, onClick = onClick)
     is Block.App -> Tile(name, onClick = onClick)
     is Block.Spotify -> Tile(name, SpotifyTone, R.drawable.ph_spotify_logo, SpotifyColor, onClick = onClick)
