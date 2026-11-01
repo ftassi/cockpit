@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A rev counter whose ticks are equalizer bars, around a play symbol. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M40.56,67.44L37.24,70.76M36.45,61.27L31.27,63.41M35.00,54.00L27.60,54.00M36.45,46.73L27.12,42.86M40.56,40.56L34.70,34.70M46.73,36.45L44.24,30.44M54.00,35.00L54.00,25.80M61.27,36.45L65.82,25.45M67.44,40.56L74.58,33.42M71.55,46.73L79.22,43.55"
+        android:strokeColor="#FF7BE495"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.2" />
+    <path
+        android:pathData="M73.00,54.00L79.50,54.00M71.55,61.27L80.05,64.79M67.44,67.44L72.67,72.67"
+        android:strokeColor="#FFFF7A59"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.2" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M49.70,47.50L61.14,54L49.70,60.50Z"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2.5" />
+</vector>
