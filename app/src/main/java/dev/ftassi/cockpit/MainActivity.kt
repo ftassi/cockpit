@@ -26,6 +26,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import dev.ftassi.cockpit.carmode.CarMode
+import dev.ftassi.cockpit.carmode.CellularRoute
 import dev.ftassi.cockpit.carmode.isUsbAudio
 import dev.ftassi.cockpit.carmode.openDndAccessSettings
 import dev.ftassi.cockpit.config.Block
@@ -110,8 +111,9 @@ class MainActivity : ComponentActivity() {
             // Asked here, never on the way into a drive.
             if (!carModeRequested && !carMode.hasDndAccess) openDndAccessSettings(this)
         }
-        // The process may have died mid-drive, taking the audio with it.
-        if (carMode.isActive && !carModeRequested) resumeIfSilent()
+        // The process may have died mid-drive, taking the mobile data route and
+        // the audio with it.
+        if (carMode.isActive && !carModeRequested) CellularRoute.start(this, ::resumeIfSilent)
         getSystemService(AudioManager::class.java)
             .registerAudioDeviceCallback(usbAudio, Handler(Looper.getMainLooper()))
         setContent {
@@ -232,7 +234,9 @@ class MainActivity : ComponentActivity() {
         }
         carMode.enter()
         showCarMode(true)
-        resumeListening()
+        // Resume only once on mobile data, or the stream would start on Wi-Fi
+        // and drop when the car leaves it.
+        CellularRoute.start(this, ::resumeListening)
     }
 
     private fun resumeIfSilent() {
@@ -252,6 +256,7 @@ class MainActivity : ComponentActivity() {
         // which case it is still the most recent session.
         carMode.lastPlayer = currentPlayerPackage(this)
         carMode.exit()
+        CellularRoute.stop(this)
         showCarMode(false)
         finish()
     }
