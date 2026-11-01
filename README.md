@@ -35,6 +35,8 @@ your own to track your changes.
   any media app), with its artwork and play/pause.
 - **Bottom bar**: starred contacts with direct call and a dialer, Waze, the
   voice assistant, and a drawer of apps used in the car (parking, fuel prices).
+- **Mini player over Waze**: opening Waze from the bar leaves a small draggable
+  pill on top of it, with play/pause and the way back to Cockpit.
 
 Do Not Disturb while driving lets through calls from contacts, repeated
 callers, messages and conversations, media and alarms.
@@ -63,6 +65,7 @@ On first launch, grant what Cockpit asks for:
 - **Notification access**, to show and control what other apps are playing.
 - **Do Not Disturb access**, for car mode.
 - **Contacts and phone**, the first time you open the phone screen.
+- **Display over other apps**, the first time you open Waze from the bar.
 
 Starred contacts in the address book are the phone favourites.
 

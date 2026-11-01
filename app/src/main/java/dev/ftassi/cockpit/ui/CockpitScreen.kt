@@ -45,7 +45,6 @@ import dev.ftassi.cockpit.config.Block
 import dev.ftassi.cockpit.config.Icon
 import dev.ftassi.cockpit.launch.openApp
 import dev.ftassi.cockpit.launch.openSpotify
-import dev.ftassi.cockpit.launch.openWaze
 import dev.ftassi.cockpit.launch.startVoiceAssist
 import dev.ftassi.cockpit.nowplaying.NowPlayingState
 import kotlinx.coroutines.delay
@@ -59,6 +58,7 @@ fun CockpitScreen(
     bar: List<Block>,
     nowPlaying: NowPlayingState,
     onPlay: (Block.Radio) -> Unit,
+    onWaze: () -> Unit,
 ) {
     val context = LocalContext.current
     // Screens opened on top of the home: only Group and Contacts.
@@ -83,7 +83,7 @@ fun CockpitScreen(
             is Block.Radio -> onPlay(block)
             is Block.Spotify -> openSpotify(context, block.uri)
             is Block.App -> openApp(context, block.packageName, block.name)
-            Block.Waze -> openWaze(context)
+            Block.Waze -> onWaze()
             Block.Voice -> startVoiceAssist(context)
         }
     }
