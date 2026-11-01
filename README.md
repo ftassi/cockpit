@@ -14,6 +14,12 @@ It is built for glancing while driving: big targets in fixed positions, a
 pure black screen for night driving, and one tap for the thing you do most
 (switching station).
 
+This is not a product to install as it is: it is one person's setup, published
+as a primer. Fork it and shape it around your own car, stations and apps,
+ideally with a coding agent. `CLAUDE.md` gives the agent the project's stack
+and conventions, and points to a `PLAN.md` that is not in this repo: create
+your own to track your changes.
+
 ## What it does
 
 - **Car mode on plug-in.** Connecting the car's USB audio splitter opens
@@ -148,6 +154,12 @@ You can also start car mode without the cable by opening the link
 
 ## Licenses
 
-Icons: Phosphor Icons, MIT. Font: Barlow Semi Condensed, SIL Open Font License
-(`licenses/`). Station logos belong to their broadcasters and are bundled for
-personal use only.
+The code is under the [MIT License](LICENSE). Icons: Phosphor Icons, MIT. Font:
+Barlow Semi Condensed, SIL Open Font License (both in `licenses/`).
+
+The MIT License does not cover the station logos in
+`app/src/main/assets/logos/`, nor their appearance in `docs/`: they and the
+station names are trademarks of their broadcasters, are here only as the
+author's personal configuration, and imply no affiliation or endorsement. If
+you are a rights holder and want one removed, open an issue. Replace them with
+your own stations when you fork.

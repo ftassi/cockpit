@@ -90,8 +90,9 @@ screenshot: ## Save a screenshot of the phone to screenshots/latest.png
 usb-devices: ## List USB devices the phone has hosted (vendor/product ids for the USB filter)
 	$(ADB) shell dumpsys usb | sed -n '/host_manager={/,$$p' | grep -E 'manufacturer=[0-9]+$$|product=[0-9]+$$' | paste - - | sort -u
 
-icons: ## Regenerate the Phosphor vector drawables listed in ICONS
+icons: ## Regenerate the Phosphor vector drawables listed in ICONS, plus their license
 	python3 scripts/phosphor_icons.py app/src/main/res/drawable $(PHOSPHOR_VERSION) $(ICONS)
+	curl -fsSL -o licenses/phosphor-MIT.txt https://unpkg.com/@phosphor-icons/core@$(PHOSPHOR_VERSION)/LICENSE
 
 fonts: ## Download the Barlow Semi Condensed weights the UI uses, plus its license
 	mkdir -p app/src/main/res/font licenses
