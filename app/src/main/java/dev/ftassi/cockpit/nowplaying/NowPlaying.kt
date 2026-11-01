@@ -26,13 +26,15 @@ sealed interface NowPlayingState {
         val subtitle: String?,
         val artwork: Bitmap?,
         val isPlaying: Boolean,
+        // Our radio wants to play but has no audio yet: starting or reconnecting.
+        val connecting: Boolean,
         private val controller: MediaController,
     ) : NowPlayingState {
         // The app playing it, e.g. Cockpit itself for the radio.
         val source: String get() = controller.packageName
 
         fun togglePlayPause() {
-            if (isPlaying) controller.transportControls.pause() else controller.transportControls.play()
+            if (isPlaying || connecting) controller.transportControls.pause() else controller.transportControls.play()
         }
     }
 }
@@ -91,6 +93,9 @@ class NowPlayingTracker(private val context: Context) {
                 subtitle = chosen.metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST),
                 artwork = chosen.metadata?.artwork(),
                 isPlaying = chosen.isPlaying(),
+                connecting = chosen.packageName == context.packageName && chosen.playbackState?.state.let {
+                    it == PlaybackState.STATE_BUFFERING || it == PlaybackState.STATE_ERROR
+                },
                 controller = chosen,
             )
         }
@@ -101,6 +106,8 @@ class NowPlayingTracker(private val context: Context) {
 // was playing last. Requires the notification listener permission.
 fun currentPlayerPackage(context: Context): String? =
     pickActive(activeSessions(context).filter { it.title() != null }) { it.isPlaying() }?.packageName
+
+fun somethingIsPlaying(context: Context): Boolean = activeSessions(context).any { it.isPlaying() }
 
 // Resumes the given app's session, if it still has one.
 fun resumePlayer(context: Context, packageName: String): Boolean {

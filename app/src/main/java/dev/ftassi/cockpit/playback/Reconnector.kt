@@ -13,6 +13,9 @@ import androidx.media3.common.Player
 import kotlin.math.min
 
 private const val TAG = "Cockpit"
+// Media3's own retries can take over a minute to report an error: a car going
+// out of Wi-Fi range would sit in silence all that time.
+private const val STALL_MS = 10_000L
 
 // Keeps a live stream going through coverage gaps: when playback fails while
 // the user still wants it, prepare again with exponential backoff, and right
@@ -23,7 +26,15 @@ class Reconnector(context: Context, private val player: Player) {
     private var attempt = 0
     private val retry = Runnable {
         Log.i(TAG, "Reconnecting (attempt $attempt)")
+        // Only an idle player prepares again; stop() keeps the station.
+        player.stop()
         player.prepare()
+    }
+    private val stalled = Runnable {
+        if (player.playWhenReady && player.playbackState == Player.STATE_BUFFERING) {
+            Log.w(TAG, "Stream stalled, reconnecting")
+            retry.run()
+        }
     }
 
     private val playerListener = object : Player.Listener {
@@ -39,7 +50,15 @@ class Reconnector(context: Context, private val player: Player) {
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-            if (!playWhenReady) handler.removeCallbacks(retry)
+            if (!playWhenReady) {
+                handler.removeCallbacks(retry)
+                handler.removeCallbacks(stalled)
+            }
+        }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            handler.removeCallbacks(stalled)
+            if (playbackState == Player.STATE_BUFFERING) handler.postDelayed(stalled, STALL_MS)
         }
     }
 
@@ -51,7 +70,8 @@ class Reconnector(context: Context, private val player: Player) {
         override fun onAvailable(network: Network) {
             handler.post {
                 Log.i(TAG, "Network available")
-                if (player.playerError != null && player.playWhenReady) schedule(0)
+                val stuck = player.playerError != null || player.playbackState == Player.STATE_BUFFERING
+                if (stuck && player.playWhenReady) schedule(0)
             }
         }
 
@@ -70,6 +90,7 @@ class Reconnector(context: Context, private val player: Player) {
 
     fun release() {
         handler.removeCallbacks(retry)
+        handler.removeCallbacks(stalled)
         player.removeListener(playerListener)
         connectivity.unregisterNetworkCallback(networkCallback)
     }

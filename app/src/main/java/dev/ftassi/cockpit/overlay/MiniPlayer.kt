@@ -46,14 +46,16 @@ class MiniPlayer(context: Context) {
 
     val canShow: Boolean get() = Settings.canDrawOverlays(context)
 
-    fun show() {
+    // keepScreenOn: over another app, Cockpit's own window flag no longer applies.
+    fun show(keepScreenOn: Boolean) {
         if (pill != null) return
         val density = context.resources.displayMetrics.density
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                (if (keepScreenOn) WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON else 0),
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -95,7 +97,7 @@ class MiniPlayer(context: Context) {
 
         following = CoroutineScope(Dispatchers.Main.immediate).launch {
             tracker.state.collect { state ->
-                val playing = state is NowPlayingState.Active && state.isPlaying
+                val playing = state is NowPlayingState.Active && (state.isPlaying || state.connecting)
                 playPause.setImageResource(if (playing) R.drawable.ph_pause else R.drawable.ph_play)
             }
         }
@@ -120,15 +122,15 @@ class MiniPlayer(context: Context) {
         tracker.stop()
     }
 
-    // Any touch on the pill can drag it: buttons only count a touch that did
-    // not move as a tap.
+    // Dragging starts only after holding it: on a bumpy road a shaky tap must
+    // still be a tap, not lose the command and move the pill.
     private fun dragging(view: View, root: View, params: WindowManager.LayoutParams, onTap: () -> Unit) {
         val slop = ViewConfiguration.get(context).scaledTouchSlop
         var downX = 0f
         var downY = 0f
         var startX = 0
         var startY = 0
-        var moved = false
+        var dragging = false
         view.setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
@@ -136,20 +138,25 @@ class MiniPlayer(context: Context) {
                     downY = event.rawY
                     startX = params.x
                     startY = params.y
-                    moved = false
+                    dragging = false
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.rawX - downX
                     val dy = event.rawY - downY
-                    if (abs(dx) > slop || abs(dy) > slop) moved = true
-                    if (moved) {
+                    val held = event.eventTime - event.downTime >= ViewConfiguration.getLongPressTimeout()
+                    if (held && (abs(dx) > slop || abs(dy) > slop)) dragging = true
+                    if (dragging) {
                         params.x = startX + dx.toInt()
                         params.y = startY + dy.toInt()
                         windows.updateViewLayout(root, params)
                     }
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (moved) {
+                    if (dragging) {
+                        val screen = context.resources.displayMetrics
+                        params.x = params.x.coerceIn(0, (screen.widthPixels - root.width).coerceAtLeast(0))
+                        params.y = params.y.coerceIn(0, (screen.heightPixels - root.height).coerceAtLeast(0))
+                        windows.updateViewLayout(root, params)
                         prefs.edit {
                             putInt(X, params.x)
                             putInt(Y, params.y)

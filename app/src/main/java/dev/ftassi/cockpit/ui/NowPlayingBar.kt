@@ -37,8 +37,7 @@ private const val SPOTIFY = "com.spotify.music"
 private val BarHeight = 80.dp
 private val Label = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.3.sp)
 
-// A compact pill just above the bottom bar: a glance at what plays, and
-// pause within thumb reach.
+// A compact pill above the stations: a glance at what plays, and pause.
 @Composable
 fun NowPlayingBar(state: NowPlayingState) {
     val context = LocalContext.current
@@ -76,7 +75,7 @@ fun NowPlayingBar(state: NowPlayingState) {
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    state.subtitle?.let {
+                    (if (state.connecting) "Connessione…" else state.subtitle)?.let {
                         Text(
                             "● ${it.uppercase()}",
                             style = Label,
@@ -105,8 +104,8 @@ fun NowPlayingBar(state: NowPlayingState) {
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            painterResource(if (state.isPlaying) R.drawable.ph_pause else R.drawable.ph_play),
-                            contentDescription = if (state.isPlaying) "Pausa" else "Riproduci",
+                            painterResource(if (state.isPlaying || state.connecting) R.drawable.ph_pause else R.drawable.ph_play),
+                            contentDescription = if (state.isPlaying || state.connecting) "Pausa" else "Riproduci",
                             modifier = Modifier.size(28.dp),
                         )
                     }

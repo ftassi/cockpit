@@ -83,6 +83,14 @@
             </intent-filter>
         </service>
 
+        <receiver
+            android:name=".carmode.UsbDetachReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_DETACHED" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".spotify.SpotifyHistoryJob"
             android:exported="false"

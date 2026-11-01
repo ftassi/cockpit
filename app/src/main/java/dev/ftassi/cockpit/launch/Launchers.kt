@@ -11,6 +11,10 @@ private const val WAZE = "com.waze"
 
 fun openWaze(context: Context) = openApp(context, WAZE, "Waze")
 
+// "Home" is the favourite Waze itself keeps; without one, Waze just opens.
+fun navigateHome(context: Context) =
+    start(context, Intent(Intent.ACTION_VIEW, "waze://?favorite=Home&navigate=yes".toUri()).setPackage(WAZE), "Waze")
+
 fun openSpotify(context: Context, uri: String?) {
     if (uri == null) {
         openApp(context, SPOTIFY, "Spotify")

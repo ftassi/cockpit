@@ -54,7 +54,6 @@ import dev.ftassi.cockpit.R
 import dev.ftassi.cockpit.config.Block
 import dev.ftassi.cockpit.config.Icon
 import dev.ftassi.cockpit.launch.openApp
-import dev.ftassi.cockpit.launch.openSpotify
 import dev.ftassi.cockpit.launch.startVoiceAssist
 import dev.ftassi.cockpit.nowplaying.NowPlayingState
 import dev.ftassi.cockpit.spotify.SpotifyPlaylist
@@ -73,6 +72,8 @@ fun CockpitScreen(
     nowPlaying: NowPlayingState,
     onPlay: (Block.Radio) -> Unit,
     onWaze: () -> Unit,
+    onWazeHome: () -> Unit,
+    onSpotify: (String?) -> Unit,
     spotify: SpotifyState,
     onSpotifyLogin: () -> Unit,
     onPlaylist: (String) -> Unit,
@@ -99,7 +100,7 @@ fun CockpitScreen(
         when (block) {
             is Block.Group, Block.Contacts -> stack.add(block)
             is Block.Radio -> onPlay(block)
-            is Block.Spotify -> openSpotify(context, block.uri)
+            is Block.Spotify -> onSpotify(block.uri)
             is Block.App -> openApp(context, block.packageName, block.name)
             Block.Waze -> onWaze()
             Block.Voice -> startVoiceAssist(context)
@@ -119,6 +120,9 @@ fun CockpitScreen(
             modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp).padding(bottom = BottomBarHeight + Gap),
             verticalArrangement = Arrangement.spacedBy(Gap),
         ) {
+            // At the top, away from the bar: play/pause and the bar's buttons are
+            // not to be confused by a thumb that is not looking.
+            NowPlayingBar(nowPlaying)
             val content = Modifier.weight(1f)
             // Going back lives up here, so the bar's buttons never shift.
             if (stack.isNotEmpty()) BackPill { stack.removeAt(stack.lastIndex) }
@@ -132,7 +136,6 @@ fun CockpitScreen(
                 is Block.Group -> TileGrid(screen.blocks.map(toTile), content)
                 else -> ContactsScreen(content)
             }
-            NowPlayingBar(nowPlaying)
         }
 
         AnimatedVisibility(drawer != null, enter = fadeIn(tween(240)), exit = fadeOut(tween(180))) {
@@ -146,7 +149,7 @@ fun CockpitScreen(
         val buttons = bar.mapNotNull { block ->
             when (block) {
                 Block.Contacts -> BarItem("Telefono", R.drawable.ph_phone) { onBlockClick(block) }
-                Block.Waze -> BarItem("Waze", R.drawable.ph_navigation_arrow) { onBlockClick(block) }
+                Block.Waze -> BarItem("Waze", R.drawable.ph_navigation_arrow, onLongClick = onWazeHome) { onBlockClick(block) }
                 Block.Voice -> BarItem("Assistente vocale", R.drawable.ph_microphone) { onBlockClick(block) }
                 is Block.Group -> {
                     val open = drawer == block

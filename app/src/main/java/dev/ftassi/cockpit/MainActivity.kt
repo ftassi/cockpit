@@ -1,6 +1,7 @@
 package dev.ftassi.cockpit
 
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.hardware.usb.UsbManager
 import android.media.AudioDeviceCallback
@@ -32,12 +33,14 @@ import dev.ftassi.cockpit.config.Config
 import dev.ftassi.cockpit.config.firstRadio
 import dev.ftassi.cockpit.config.loadConfig
 import dev.ftassi.cockpit.launch.openSpotify
+import dev.ftassi.cockpit.launch.navigateHome
 import dev.ftassi.cockpit.launch.openWaze
 import dev.ftassi.cockpit.nowplaying.NowPlayingTracker
 import dev.ftassi.cockpit.overlay.MiniPlayer
 import dev.ftassi.cockpit.overlay.openOverlaySettings
 import dev.ftassi.cockpit.nowplaying.currentPlayerPackage
 import dev.ftassi.cockpit.nowplaying.resumePlayer
+import dev.ftassi.cockpit.nowplaying.somethingIsPlaying
 import dev.ftassi.cockpit.playback.RadioService
 import dev.ftassi.cockpit.recents.RecentRadios
 import dev.ftassi.cockpit.spotify.REDIRECT_URI
@@ -49,6 +52,9 @@ import dev.ftassi.cockpit.ui.CockpitTheme
 import kotlinx.coroutines.launch
 
 private const val CAR_MODE_LINK = "cockpit://car"
+// A shaky contact or the starter dipping the power must not end the drive.
+private const val UNPLUG_GRACE_MS = 3_000L
+private const val SPOTIFY_START_MS = 2_500L
 
 class MainActivity : ComponentActivity() {
     private var controllerFuture: ListenableFuture<MediaController>? = null
@@ -61,22 +67,34 @@ class MainActivity : ComponentActivity() {
     private var recentRadios = emptyList<Block.Radio>()
     // Set by a car mode link, handled in onResume once the controller exists.
     private var carModeRequested = false
+    // Asked for while the controller was not there: played at the next onStart.
+    private var pendingRadio: Block.Radio? = null
+    private var spotifyLoaded = false
+    private val handler = Handler(Looper.getMainLooper())
+    private val unplugged = Runnable { if (carMode.isActive) exitCarMode() }
+    private val backToCockpit = Runnable {
+        startActivity(Intent(this, MainActivity::class.java))
+    }
 
     // Registered for the activity's whole life, so it also works while Waze or
     // Spotify is in front.
     private val usbAudio = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(added: Array<AudioDeviceInfo>) {
-            if (added.any { it.isUsbAudio() }) carMode.maxOutUsbVolume()
+            if (added.any { it.isUsbAudio() }) {
+                handler.removeCallbacks(unplugged)
+                carMode.maxOutUsbVolume()
+            }
         }
 
         // The splitter unplugged (paying a toll, leaving the car): end the drive.
         override fun onAudioDevicesRemoved(removed: Array<AudioDeviceInfo>) {
-            if (carMode.isActive && removed.any { it.isUsbAudio() }) exitCarMode()
+            if (carMode.isActive && removed.any { it.isUsbAudio() }) handler.postDelayed(unplugged, UNPLUG_GRACE_MS)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        alive = true
         config = loadConfig(this)
         nowPlaying = NowPlayingTracker(this)
         carMode = CarMode(this)
@@ -89,7 +107,11 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) {
             carModeRequested = intent.isCarModeLink()
             finishSpotifyLogin(intent)
+            // Asked here, never on the way into a drive.
+            if (!carModeRequested && !carMode.hasDndAccess) openDndAccessSettings(this)
         }
+        // The process may have died mid-drive, taking the audio with it.
+        if (carMode.isActive && !carModeRequested) resumeIfSilent()
         getSystemService(AudioManager::class.java)
             .registerAudioDeviceCallback(usbAudio, Handler(Looper.getMainLooper()))
         setContent {
@@ -102,7 +124,9 @@ class MainActivity : ComponentActivity() {
                         config.bar,
                         nowPlayingState,
                         onPlay = ::play,
-                        onWaze = ::openWazeWithMiniPlayer,
+                        onWaze = { openWithMiniPlayer(::openWaze) },
+                        onWazeHome = { openWithMiniPlayer(::navigateHome) },
+                        onSpotify = { uri -> openWithMiniPlayer { openSpotify(it, uri) } },
                         spotify = spotifyState,
                         onSpotifyLogin = spotify::startLogin,
                         onPlaylist = ::playPlaylist,
@@ -125,9 +149,18 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         miniPlayer.hide()
-        lifecycleScope.launch { spotify.refresh() }
+        // In the car the row must not reorder under a returning finger: one load
+        // per drive, and the hourly job keeps the saved list for the next.
+        if (!spotifyLoaded || !carMode.isActive) {
+            spotifyLoaded = true
+            lifecycleScope.launch { spotify.refresh() }
+        }
         val token = SessionToken(this, ComponentName(this, RadioService::class.java))
         controllerFuture = MediaController.Builder(this, token).buildAsync()
+        pendingRadio?.let {
+            pendingRadio = null
+            play(it)
+        }
         // Also re-checks the listener permission when coming back from Settings.
         nowPlaying.start()
     }
@@ -141,12 +174,17 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        alive = false
+        handler.removeCallbacks(unplugged)
+        handler.removeCallbacks(backToCockpit)
         miniPlayer.hide()
         getSystemService(AudioManager::class.java).unregisterAudioDeviceCallback(usbAudio)
         super.onDestroy()
     }
 
     override fun onStop() {
+        // A way back from whatever app is in front, and the screen stays on.
+        if (carMode.isActive && !isFinishing && miniPlayer.canShow) miniPlayer.show(keepScreenOn = true)
         nowPlaying.stop()
         controllerFuture?.let(MediaController::releaseFuture)
         controllerFuture = null
@@ -158,37 +196,49 @@ class MainActivity : ComponentActivity() {
         if (intent.dataString?.startsWith(REDIRECT_URI) == true) lifecycleScope.launch { spotify.finishLogin(data) }
     }
 
-    // Spotify's ":play" suffix starts the playlist, Spotify closed or not. The
-    // Web API cannot: it fails with NO_ACTIVE_DEVICE until Spotify plays here.
-    private fun playPlaylist(uri: String) = openSpotify(this, "$uri:play")
+    // Spotify's ":play" suffix starts the playlist even from closed, but only by
+    // opening Spotify, so Cockpit comes back on its own once it had time to start.
+    // Nothing else works: the Web API fails with NO_ACTIVE_DEVICE until Spotify
+    // plays here, and its media session ignores playFromUri.
+    private fun playPlaylist(uri: String) {
+        openWithMiniPlayer { openSpotify(it, "$uri:play") }
+        handler.removeCallbacks(backToCockpit)
+        handler.postDelayed(backToCockpit, SPOTIFY_START_MS)
+    }
 
     private fun togglePin(playlist: SpotifyPlaylist) {
+        // A bump in the road must not change the row.
+        if (carMode.isActive) return
         if (playlist.pinned) spotify.unpin(playlist.uri) else spotify.pin(playlist.uri)
         val message = if (playlist.pinned) "Playlist non più pinnata" else "Playlist pinnata"
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         lifecycleScope.launch { spotify.refresh() }
     }
 
-    private fun openWazeWithMiniPlayer() {
-        if (!miniPlayer.canShow) {
+    // While driving, the app opens regardless: the pill is the optional part.
+    private fun openWithMiniPlayer(open: (Context) -> Unit) {
+        if (miniPlayer.canShow) {
+            miniPlayer.show(keepScreenOn = carMode.isActive)
+        } else if (!carMode.isActive) {
             Toast.makeText(this, "Consenti a Cockpit di mostrarsi sopra le altre app", Toast.LENGTH_LONG).show()
             openOverlaySettings(this)
             return
         }
-        miniPlayer.show()
-        openWaze(this)
+        open(this)
     }
 
     private fun enterCarMode() {
-        if (!carMode.hasDndAccess) {
-            Toast.makeText(this, "Consenti a Cockpit l'accesso a Non disturbare", Toast.LENGTH_LONG).show()
-            openDndAccessSettings(this)
+        if (carMode.isActive) {
+            resumeIfSilent()
             return
         }
-        if (carMode.isActive) return
         carMode.enter()
         showCarMode(true)
         resumeListening()
+    }
+
+    private fun resumeIfSilent() {
+        if (!somethingIsPlaying(this)) resumeListening()
     }
 
     // Pick up whatever was on when the last drive ended: a podcast in Spotify
@@ -217,9 +267,18 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun play(radio: Block.Radio) {
-        val future = controllerFuture ?: return
+        val future = controllerFuture
+        if (future == null) {
+            pendingRadio = radio
+            return
+        }
         recentRadios = recents.add(radio)
         future.addListener({
+            // Released by onStop while connecting: get() would throw.
+            if (future !== controllerFuture) {
+                pendingRadio = radio
+                return@addListener
+            }
             val controller = future.get()
             controller.setMediaItem(
                 MediaItem.Builder()
@@ -239,6 +298,12 @@ class MainActivity : ComponentActivity() {
             controller.prepare()
             controller.play()
         }, mainExecutor)
+    }
+
+    companion object {
+        // Lets UsbDetachReceiver leave the unplug to a living activity.
+        var alive = false
+            private set
     }
 }
 

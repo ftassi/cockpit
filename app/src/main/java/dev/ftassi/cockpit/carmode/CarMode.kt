@@ -37,7 +37,7 @@ class CarMode(private val context: Context) {
         get() = prefs.getString(LAST_PLAYER, null)
         set(value) = prefs.edit { putString(LAST_PLAYER, value) }
 
-    // Requires hasDndAccess.
+    // Without Do Not Disturb access the drive still starts: only the rule is missing.
     fun enter() {
         if (isActive) return
         prefs.edit { putBoolean(ACTIVE, true) }
@@ -69,6 +69,7 @@ class CarMode(private val context: Context) {
     // The system restores whatever Do Not Disturb state was there before when
     // the rule goes off, including one the user turned on by hand.
     private fun setDriving(on: Boolean) {
+        if (!hasDndAccess) return
         val state = if (on) Condition.STATE_TRUE else Condition.STATE_FALSE
         notifications.setAutomaticZenRuleState(
             drivingRuleId(),

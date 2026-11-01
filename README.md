@@ -39,8 +39,9 @@ your own to track your changes.
   Without Spotify access it is a plain Spotify button.
 - **Bottom bar**: starred contacts with direct call and a dialer, Waze, the
   voice assistant, and a drawer of apps used in the car (parking, fuel prices).
-- **Mini player over Waze**: opening Waze from the bar leaves a small draggable
-  pill on top of it, with play/pause and the way back to Cockpit.
+- **Mini player over other apps**: in car mode, or opening Waze or Spotify from
+  Cockpit, a small pill stays on top with play/pause and the way back to Cockpit. Hold it to
+  drag it. Long press the Waze button to navigate to your Waze "Home".
 
 Do Not Disturb while driving lets through calls from contacts, repeated
 callers, messages and conversations, media and alarms.

@@ -23,7 +23,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 private const val TAG = "Cockpit"
@@ -31,6 +30,8 @@ private const val API = "https://api.spotify.com/v1"
 private const val TOKEN_URL = "https://accounts.spotify.com/api/token"
 private const val EMBED_URL = "https://open.spotify.com/oembed"
 private const val MAX_PLAYLISTS = 3
+// The default is no timeout: a stuck request would hold the lock forever.
+private const val TIMEOUT_MS = 15_000
 private const val REFRESH_TOKEN = "refresh_token"
 private const val GRANTED_SCOPES = "granted_scopes"
 private const val VERIFIER = "verifier"
@@ -65,7 +66,6 @@ class SpotifyRecents(context: Context) {
     private val context = context.applicationContext
     private val prefs = this.context.getSharedPreferences("spotify", Context.MODE_PRIVATE)
     private val covers = File(this.context.filesDir, "spotify")
-    private var accessToken: String? = null
 
     private val mutableState = MutableStateFlow<SpotifyState>(SpotifyState.NotConnected)
     val state: StateFlow<SpotifyState> = mutableState
@@ -119,7 +119,6 @@ class SpotifyRecents(context: Context) {
                 )
             }
             if (outcome is RefreshOutcome.Ok) {
-                accessToken = outcome.accessToken
                 prefs.edit {
                     putString(REFRESH_TOKEN, outcome.refreshToken)
                     putString(GRANTED_SCOPES, SCOPES)
@@ -176,7 +175,8 @@ class SpotifyRecents(context: Context) {
         } catch (e: IOException) {
             Log.w(TAG, "Spotify history failed", e)
             mutableState.value = connected(saved)
-        } catch (e: SerializationException) {
+        } catch (e: IllegalArgumentException) {
+            // A malformed response must not take the radio down: same process.
             Log.w(TAG, "Spotify history unreadable", e)
             mutableState.value = connected(saved)
         }
@@ -211,6 +211,8 @@ class SpotifyRecents(context: Context) {
         try {
             covers.mkdirs()
             (URL(url).openConnection() as HttpURLConnection).run {
+                connectTimeout = TIMEOUT_MS
+                readTimeout = TIMEOUT_MS
                 try {
                     inputStream.use { input -> File(covers, id).outputStream().use(input::copyTo) }
                 } finally {
@@ -238,7 +240,6 @@ class SpotifyRecents(context: Context) {
         val refreshToken = prefs.getString(REFRESH_TOKEN, null) ?: return RefreshOutcome.Failed
         val outcome = requestToken("grant_type" to "refresh_token", "refresh_token" to refreshToken)
         if (outcome is RefreshOutcome.Ok) {
-            accessToken = outcome.accessToken
             outcome.refreshToken?.let { prefs.edit { putString(REFRESH_TOKEN, it) } }
         }
         return outcome
@@ -264,6 +265,8 @@ class SpotifyRecents(context: Context) {
     ): Response {
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
+            connection.connectTimeout = TIMEOUT_MS
+            connection.readTimeout = TIMEOUT_MS
             connection.requestMethod = method
             token?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
             if (body != null) {

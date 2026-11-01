@@ -9,7 +9,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +53,7 @@ private val DrawerLabel = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Me
 
 // One button per bar block; a group opens its apps in a drawer that grows the
 // bar upwards, so the buttons below never move.
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BottomBar(
     buttons: List<BarItem>,
@@ -75,8 +78,9 @@ fun BottomBar(
             Row(modifier = Modifier.height(BottomBarHeight - 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (item in buttons) {
                     Surface(
-                        onClick = item.onClick,
-                        modifier = Modifier.weight(1f).height(BottomBarHeight - 16.dp),
+                        modifier = Modifier.weight(1f).height(BottomBarHeight - 16.dp)
+                            .clip(CircleShape)
+                            .combinedClickable(onLongClick = item.onLongClick, onClick = item.onClick),
                         shape = CircleShape,
                         color = if (item.selected) SelectedSlot else SurfaceTone,
                     ) {
@@ -90,7 +94,7 @@ fun BottomBar(
     }
 }
 
-data class BarItem(val label: String, @DrawableRes val icon: Int, val selected: Boolean = false, val onClick: () -> Unit)
+data class BarItem(val label: String, @DrawableRes val icon: Int, val selected: Boolean = false, val onLongClick: (() -> Unit)? = null, val onClick: () -> Unit)
 
 // Three to a row, left-aligned; never scrolls, the config keeps it short.
 // Only apps belong in a drawer.

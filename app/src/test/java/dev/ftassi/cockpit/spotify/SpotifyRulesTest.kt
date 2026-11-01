@@ -40,6 +40,12 @@ class SpotifyRulesTest {
     }
 
     @Test
+    fun `history tolerates empty items instead of crashing`() {
+        val history = """{"items": [null, {"context": {"type": "playlist", "uri": "spotify:playlist:A"}}]}"""
+        assertEquals(listOf("spotify:playlist:A"), playlistUris(history))
+    }
+
+    @Test
     fun `history without playlists gives an empty list`() {
         assertEquals(emptyList<String>(), playlistUris("""{"items": []}"""))
     }

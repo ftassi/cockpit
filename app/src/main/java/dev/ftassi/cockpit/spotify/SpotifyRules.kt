@@ -3,7 +3,6 @@ package dev.ftassi.cockpit.spotify
 import java.net.URLEncoder
 import java.security.MessageDigest
 import java.util.Base64
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -42,7 +41,7 @@ fun authorizeUrl(challenge: String, state: String): String {
 fun playlistUris(historyJson: String): List<String> =
     Json.parseToJsonElement(historyJson).jsonObject["items"]?.jsonArray.orEmpty()
         .mapNotNull { item ->
-            val context = item.jsonObject["context"] as? JsonObject ?: return@mapNotNull null
+            val context = (item as? JsonObject)?.get("context") as? JsonObject ?: return@mapNotNull null
             if (context.text("type") == "playlist") context.text("uri") else null
         }
         .distinct()
@@ -89,7 +88,7 @@ sealed interface RefreshOutcome {
 fun classifyRefresh(status: Int, body: String): RefreshOutcome {
     val json = try {
         Json.parseToJsonElement(body) as? JsonObject
-    } catch (_: SerializationException) {
+    } catch (_: IllegalArgumentException) {
         null
     } ?: return RefreshOutcome.Failed
     return when {
