@@ -5,13 +5,17 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,11 +39,17 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.ftassi.cockpit.R
 import dev.ftassi.cockpit.config.Block
 import dev.ftassi.cockpit.config.Icon
@@ -47,10 +57,14 @@ import dev.ftassi.cockpit.launch.openApp
 import dev.ftassi.cockpit.launch.openSpotify
 import dev.ftassi.cockpit.launch.startVoiceAssist
 import dev.ftassi.cockpit.nowplaying.NowPlayingState
+import dev.ftassi.cockpit.spotify.SpotifyPlaylist
+import dev.ftassi.cockpit.spotify.SpotifyState
 import kotlinx.coroutines.delay
 
 private const val DrawerTimeout = 10_000L
 private val SpotifyPillHeight = 88.dp
+private const val SpotifyRowSize = 4
+private val Caption = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium)
 
 @Composable
 fun CockpitScreen(
@@ -59,6 +73,10 @@ fun CockpitScreen(
     nowPlaying: NowPlayingState,
     onPlay: (Block.Radio) -> Unit,
     onWaze: () -> Unit,
+    spotify: SpotifyState,
+    onSpotifyLogin: () -> Unit,
+    onPlaylist: (String) -> Unit,
+    onPlaylistLongPress: (SpotifyPlaylist) -> Unit,
 ) {
     val context = LocalContext.current
     // Screens opened on top of the home: only Group and Contacts.
@@ -109,7 +127,7 @@ fun CockpitScreen(
                 // the rest of the screen.
                 null -> {
                     TileGrid(blocks.filter { it !is Block.Spotify }.map(toTile), content)
-                    blocks.filterIsInstance<Block.Spotify>().forEach { SpotifyPill(it, onBlockClick) }
+                    blocks.filterIsInstance<Block.Spotify>().forEach { SpotifyArea(it, spotify, onBlockClick, onSpotifyLogin, onPlaylist, onPlaylistLongPress) }
                 }
                 is Block.Group -> TileGrid(screen.blocks.map(toTile), content)
                 else -> ContactsScreen(content)
@@ -163,13 +181,97 @@ private fun BackPill(onClick: () -> Unit) {
     }
 }
 
-// A full-width pill under the stations, until Spotify recents give it
-// something to show next to the logo.
+// The row of recent playlists when there are any, otherwise the plain pill: the
+// app stays fully usable without the Spotify integration.
 @Composable
-private fun SpotifyPill(block: Block.Spotify, onClick: (Block) -> Unit) {
+private fun SpotifyArea(
+    block: Block.Spotify,
+    state: SpotifyState,
+    onClick: (Block) -> Unit,
+    onLogin: () -> Unit,
+    onPlaylist: (String) -> Unit,
+    onPlaylistLongPress: (SpotifyPlaylist) -> Unit,
+) {
+    when {
+        state is SpotifyState.Connected && state.playlists.isNotEmpty() ->
+            SpotifyRow(block, state.playlists, onClick, onPlaylist, onPlaylistLongPress)
+        state is SpotifyState.TokenExpired -> Row(horizontalArrangement = Arrangement.spacedBy(Gap)) {
+            SpotifyPill(block, onClick, Modifier.weight(1f))
+            Surface(
+                onClick = onLogin,
+                modifier = Modifier.size(SpotifyPillHeight),
+                shape = CircleShape,
+                color = SpotifyTone,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        painterResource(R.drawable.ph_arrows_clockwise),
+                        contentDescription = "Rinnova accesso Spotify",
+                        tint = SpotifyColor,
+                        modifier = Modifier.size(36.dp),
+                    )
+                }
+            }
+        }
+        // Long press because it is needed once, and the pill is all there is.
+        state is SpotifyState.NotConnected -> SpotifyPill(block, onClick, Modifier.fillMaxWidth(), onLongClick = onLogin)
+        else -> SpotifyPill(block, onClick, Modifier.fillMaxWidth())
+    }
+}
+
+// Four equal squares, whatever the number of playlists, so they keep their size.
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SpotifyRow(
+    block: Block.Spotify,
+    playlists: List<SpotifyPlaylist>,
+    onClick: (Block) -> Unit,
+    onPlaylist: (String) -> Unit,
+    onLongPress: (SpotifyPlaylist) -> Unit,
+) {
+    val shown = playlists.take(SpotifyRowSize - 1)
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Surface(
+                onClick = { onClick(block) },
+                modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                shape = RoundedCornerShape(18.dp),
+                color = SpotifyTone,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(painterResource(R.drawable.ph_spotify_logo), contentDescription = block.name, tint = SpotifyColor, modifier = Modifier.size(40.dp))
+                }
+            }
+            Text(block.name, style = Caption, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        for (playlist in shown) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+                        .clip(RoundedCornerShape(18.dp))
+                        .combinedClickable(onLongClick = { onLongPress(playlist) }) { onPlaylist(playlist.uri) },
+                    shape = RoundedCornerShape(18.dp),
+                    color = SpotifyTone,
+                ) {
+                    playlist.cover?.let {
+                        Image(it, contentDescription = playlist.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    }
+                }
+                Text(playlist.name, style = Caption, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        repeat(SpotifyRowSize - 1 - shown.size) { Spacer(Modifier.weight(1f)) }
+    }
+}
+
+// Shown on its own when there are no recents to offer.
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SpotifyPill(block: Block.Spotify, onClick: (Block) -> Unit, modifier: Modifier, onLongClick: (() -> Unit)? = null) {
     Surface(
-        onClick = { onClick(block) },
-        modifier = Modifier.fillMaxWidth().height(SpotifyPillHeight),
+        modifier = modifier.height(SpotifyPillHeight)
+            .clip(CircleShape)
+            .combinedClickable(onLongClick = onLongClick) { onClick(block) },
         shape = CircleShape,
         color = SpotifyTone,
     ) {

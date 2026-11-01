@@ -11,7 +11,7 @@ KEYSTORE_DIR := $(HOME)/.config/cockpit
 
 # Phosphor Icons (MIT) and Barlow Semi Condensed (OFL), committed under res/.
 PHOSPHOR_VERSION := 2.1.1
-ICONS := radio spotify-logo play pause phone navigation-arrow microphone magnifying-glass squares-four caret-down arrow-left
+ICONS := radio spotify-logo play pause phone navigation-arrow microphone magnifying-glass squares-four caret-down arrow-left arrows-clockwise
 FONTS_URL := https://raw.githubusercontent.com/google/fonts/main/ofl/barlowsemicondensed
 FONT_WEIGHTS := Medium SemiBold
 

@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <!-- The mini player over Waze. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Keeps the hourly Spotify history job across reboots. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Package visibility (Android 11+): needed to get these apps' launch intents. -->
     <queries>
@@ -50,6 +52,26 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="cockpit" android:host="car" />
             </intent-filter>
+            <!-- Spotify's login redirects back here from the browser. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cockpit" android:host="spotify-callback" />
+            </intent-filter>
+        </activity>
+
+        <!-- Spotify's share menu sends a playlist here. -->
+        <activity
+            android:name=".spotify.ShareToCockpitActivity"
+            android:exported="true"
+            android:label="@string/share_pin"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <service
@@ -60,6 +82,11 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+
+        <service
+            android:name=".spotify.SpotifyHistoryJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <service
             android:name=".nowplaying.SessionListener"

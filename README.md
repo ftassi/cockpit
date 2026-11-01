@@ -33,6 +33,10 @@ your own to track your changes.
   playing one is framed. "Altre radio" holds the rest.
 - **Now playing** for whatever plays on the phone (Cockpit's radio, Spotify,
   any media app), with its artwork and play/pause.
+- **Last Spotify playlists**: the three last played on your account, from any
+  device, read every hour; your library fills any free slot. One tap to start.
+  Share a playlist from Spotify to Cockpit to pin it; long press to toggle.
+  Without Spotify access it is a plain Spotify button.
 - **Bottom bar**: starred contacts with direct call and a dialer, Waze, the
   voice assistant, and a drawer of apps used in the car (parking, fuel prices).
 - **Mini player over Waze**: opening Waze from the bar leaves a small draggable
@@ -145,6 +149,21 @@ audio device when something is plugged into the jack.
 
 You can also start car mode without the cable by opening the link
 `cockpit://car`, for example from an NFC tag or an automation app.
+
+### Spotify playlists
+
+Optional, and it needs Spotify Premium on the account that owns the app, because
+Spotify's API requires it in development mode. Without it, or without logging
+in, you get a plain Spotify button.
+
+1. Create an app on [Spotify's developer dashboard](https://developer.spotify.com/dashboard)
+   with the redirect URI `cockpit://spotify-callback` and the Web API.
+2. Put its client ID in `CLIENT_ID`, in
+   `app/src/main/java/dev/ftassi/cockpit/spotify/SpotifyRules.kt`.
+3. Long press the Spotify button in the app and log in.
+
+Spotify's login lasts six months and cannot be extended. When it ends, a renew
+button appears next to the Spotify button.
 
 ### Deeper changes
 

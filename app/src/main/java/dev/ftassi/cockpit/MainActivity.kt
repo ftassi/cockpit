@@ -18,6 +18,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.session.MediaController
@@ -30,6 +31,7 @@ import dev.ftassi.cockpit.config.Block
 import dev.ftassi.cockpit.config.Config
 import dev.ftassi.cockpit.config.firstRadio
 import dev.ftassi.cockpit.config.loadConfig
+import dev.ftassi.cockpit.launch.openSpotify
 import dev.ftassi.cockpit.launch.openWaze
 import dev.ftassi.cockpit.nowplaying.NowPlayingTracker
 import dev.ftassi.cockpit.overlay.MiniPlayer
@@ -38,8 +40,13 @@ import dev.ftassi.cockpit.nowplaying.currentPlayerPackage
 import dev.ftassi.cockpit.nowplaying.resumePlayer
 import dev.ftassi.cockpit.playback.RadioService
 import dev.ftassi.cockpit.recents.RecentRadios
+import dev.ftassi.cockpit.spotify.REDIRECT_URI
+import dev.ftassi.cockpit.spotify.SpotifyHistoryJob
+import dev.ftassi.cockpit.spotify.SpotifyPlaylist
+import dev.ftassi.cockpit.spotify.SpotifyRecents
 import dev.ftassi.cockpit.ui.CockpitScreen
 import dev.ftassi.cockpit.ui.CockpitTheme
+import kotlinx.coroutines.launch
 
 private const val CAR_MODE_LINK = "cockpit://car"
 
@@ -49,6 +56,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var nowPlaying: NowPlayingTracker
     private lateinit var carMode: CarMode
     private lateinit var miniPlayer: MiniPlayer
+    private lateinit var spotify: SpotifyRecents
     private lateinit var recents: RecentRadios
     private var recentRadios = emptyList<Block.Radio>()
     // Set by a car mode link, handled in onResume once the controller exists.
@@ -73,14 +81,20 @@ class MainActivity : ComponentActivity() {
         nowPlaying = NowPlayingTracker(this)
         carMode = CarMode(this)
         miniPlayer = MiniPlayer(this)
+        spotify = SpotifyRecents(this)
+        SpotifyHistoryJob.schedule(this)
         recents = RecentRadios(this)
         recentRadios = recents.load()
         showCarMode(carMode.isActive)
-        if (savedInstanceState == null) carModeRequested = intent.isCarModeLink()
+        if (savedInstanceState == null) {
+            carModeRequested = intent.isCarModeLink()
+            finishSpotifyLogin(intent)
+        }
         getSystemService(AudioManager::class.java)
             .registerAudioDeviceCallback(usbAudio, Handler(Looper.getMainLooper()))
         setContent {
             val nowPlayingState by nowPlaying.state.collectAsState()
+            val spotifyState by spotify.state.collectAsState()
             CockpitTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     CockpitScreen(
@@ -89,6 +103,10 @@ class MainActivity : ComponentActivity() {
                         nowPlayingState,
                         onPlay = ::play,
                         onWaze = ::openWazeWithMiniPlayer,
+                        spotify = spotifyState,
+                        onSpotifyLogin = spotify::startLogin,
+                        onPlaylist = ::playPlaylist,
+                        onPlaylistLongPress = ::togglePin,
                     )
                 }
             }
@@ -99,6 +117,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.isCarModeLink()) carModeRequested = true
+        finishSpotifyLogin(intent)
     }
 
     // The controller is the UI's handle on RadioService; it connects
@@ -106,6 +125,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         miniPlayer.hide()
+        lifecycleScope.launch { spotify.refresh() }
         val token = SessionToken(this, ComponentName(this, RadioService::class.java))
         controllerFuture = MediaController.Builder(this, token).buildAsync()
         // Also re-checks the listener permission when coming back from Settings.
@@ -131,6 +151,22 @@ class MainActivity : ComponentActivity() {
         controllerFuture?.let(MediaController::releaseFuture)
         controllerFuture = null
         super.onStop()
+    }
+
+    private fun finishSpotifyLogin(intent: Intent) {
+        val data = intent.data ?: return
+        if (intent.dataString?.startsWith(REDIRECT_URI) == true) lifecycleScope.launch { spotify.finishLogin(data) }
+    }
+
+    // Spotify's ":play" suffix starts the playlist, Spotify closed or not. The
+    // Web API cannot: it fails with NO_ACTIVE_DEVICE until Spotify plays here.
+    private fun playPlaylist(uri: String) = openSpotify(this, "$uri:play")
+
+    private fun togglePin(playlist: SpotifyPlaylist) {
+        if (playlist.pinned) spotify.unpin(playlist.uri) else spotify.pin(playlist.uri)
+        val message = if (playlist.pinned) "Playlist non più pinnata" else "Playlist pinnata"
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch { spotify.refresh() }
     }
 
     private fun openWazeWithMiniPlayer() {
